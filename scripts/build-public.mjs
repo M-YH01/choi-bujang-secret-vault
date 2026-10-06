@@ -11,11 +11,14 @@ if (config.step !== 1) {
 }
 const data = JSON.parse(await readFile(source, 'utf8'));
 if (!Array.isArray(data.notes)) {
-  throw new Error('실습용 공개 자료 형식을 확인하세요. 실제 학생 자료를 넣으면 안 됩니다.');
+  throw new Error('data.json 형식을 확인하세요. notes는 빈 배열이어야 합니다.');
+}
+if (data.notes.length > 0) {
+  throw new Error('메모는 공개 data.json에 둘 수 없습니다. 메모는 Supabase에 두고 /api/notes로 읽으세요.');
 }
 await mkdir(resolve(root, 'public'), { recursive: true });
 await copyFile(source, output);
-console.log('실습용 공개 자료를 public/data.json에 복사했습니다.');
+console.log('메모 없는 공개 data.json을 public/data.json에 복사했습니다.');
 if (!process.argv.includes('--local')) {
   const identity = deploymentIdentity(process.env, config);
   await writeFile(resolve(root, 'public', 'aleph.json'),
