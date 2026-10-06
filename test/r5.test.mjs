@@ -106,7 +106,8 @@ test('step 3 identity adds the login issuer and routes, tied to the same Supabas
   assert.throws(() => deploymentIdentity(env, { ...config3, identityProvider: null }));
   assert.throws(() => deploymentIdentity(env, { ...config3, allowedRoutes: [] }));
   assert.throws(() => deploymentIdentity(env, { ...config3, allowedRoutes: ['api/notes'] }));
-  assert.throws(() => deploymentIdentity(env, { ...config3, step: 4 }));
+  assert.throws(() => deploymentIdentity(env, { ...config3, step: 5 }));
+  assert.equal(deploymentIdentity(env, { ...config3, step: 4 }).step, 4);
   // 발급자가 다른 프로젝트를 가리키면 거부합니다.
   assert.throws(() => deploymentIdentity(env, { ...config3, identityProvider: {
     ...config3.identityProvider,
@@ -137,6 +138,24 @@ test('step 3 attack check records anonymous results without reading note bodies'
     globalThis.fetch = async () => new Response('<html>not json</html>', { status: 200, headers: { 'content-type': 'text/html' } });
     const [, open] = await runAttackChecks(config3);
     assert.match(open.observed, /거부되지 않음 \(HTTP 200\)/u);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('step 4 attack check adds the anonymous single-note request and leaves A/B checks unrun', async () => {
+  const originalFetch = globalThis.fetch;
+  const urls = [];
+  try {
+    globalThis.fetch = async (url) => {
+      urls.push(String(url));
+      if (String(url).endsWith('/data.json')) return new Response(JSON.stringify({ notes: [] }), { status: 200, headers: { 'content-type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'UNAUTHORIZED' }), { status: 401, headers: { 'content-type': 'application/json' } });
+    };
+    const results = await runAttackChecks({ ...config3, step: 4 });
+    assert.deepEqual(results.map((r) => r.attackId), ['anonymous_note_read', 'anonymous_note_list', 'anonymous_note_item']);
+    assert.match(urls[2], /\/api\/notes\/00000000-0000-4000-8000-000000000000$/u);
+    assert.match(results[2].observed, /JSON 오류로 거부됨 \(HTTP 401\)/u);
   } finally {
     globalThis.fetch = originalFetch;
   }

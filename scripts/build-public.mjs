@@ -6,8 +6,8 @@ const root = resolve(import.meta.dirname, '..');
 const source = resolve(root, 'data.json');
 const output = resolve(root, 'public', 'data.json');
 const config = JSON.parse(await readFile(resolve(root, 'aleph.config.json'), 'utf8'));
-if (![1, 2, 3].includes(config.step)) {
-  throw new Error('이 단계의 빌드 흐름을 scripts/build-public.mjs에 맞춰 주세요. (현재 step 1~3 지원)');
+if (![1, 2, 3, 4].includes(config.step)) {
+  throw new Error('이 단계의 빌드 흐름을 scripts/build-public.mjs에 맞춰 주세요. (현재 step 1~4 지원)');
 }
 const data = JSON.parse(await readFile(source, 'utf8'));
 if (!Array.isArray(data.notes)) {

@@ -5,8 +5,9 @@
 // - 토큰이 없거나 검사에 실패하면 자료 없이 401 JSON 오류로 거부합니다.
 // - 서버 전용 키(SUPABASE_SECRET_KEY)는 환경변수에서만 읽고, 응답·로그에 내보내지 않습니다.
 //
-// 알려진 약점(4단계에서 고칩니다): GET·PUT·DELETE /:id는 아직 소유자를 검사하지 않아서
-// 로그인한 사람이면 다른 사람의 메모도 읽고 고치고 지울 수 있습니다.
+// 4단계: 읽기·추가·수정·삭제 모두 "서버가 확인한 사용자 id = 행의 owner_id"일 때만 허용합니다.
+// 남의 메모와 없는 메모는 똑같이 404로 답해, 번호를 바꿔 보는 요청으로 존재 여부도 알 수 없게 합니다.
+// 주인이 없는(owner_id가 비어 있는) 행은 아무에게도 보이지 않습니다. 기본 거부입니다.
 import { createClient } from '@supabase/supabase-js';
 import config from '../aleph.config.json' with { type: 'json' };
 import { createLoginVerifier } from './verify-login.mjs';
@@ -32,16 +33,16 @@ export function createSupabaseStore(client) {
   const table = () => client.from(TABLE);
   return {
     async list(userId) {
-      // 주인이 있는 메모는 본인 것만, 주인이 없는(시작 틀의) 가상 메모는 로그인한 모두에게 보여 줍니다.
       const { data, error } = await table().select('id, title, content')
-        .or(`owner_id.eq.${userId},owner_id.is.null`)
+        .eq('owner_id', userId)
         .order('created_at', { ascending: true }).order('id', { ascending: true })
         .limit(MAX_LIST);
       if (error) throw storeError(error);
       return (data ?? []).map(toNote);
     },
-    async get(id) {
-      const { data, error } = await table().select('id, title, content').eq('id', id).maybeSingle();
+    async get(id, userId) {
+      const { data, error } = await table().select('id, title, content')
+        .eq('id', id).eq('owner_id', userId).maybeSingle();
       if (error) throw storeError(error);
       return data ? toNote(data) : null;
     },
@@ -51,14 +52,16 @@ export function createSupabaseStore(client) {
       if (error) throw storeError(error);
       return data.id;
     },
-    async update(id, { title, content }) {
-      const { data, error } = await table().update({ title, content }).eq('id', id)
+    async update(id, userId, { title, content }) {
+      // 기존 행(where)과 새 행(owner_id를 본인으로 고정) 모두 본인 소유일 때만 바뀝니다.
+      const { data, error } = await table().update({ title, content, owner_id: userId })
+        .eq('id', id).eq('owner_id', userId)
         .select('id, title, content').maybeSingle();
       if (error) throw storeError(error);
       return data ? toNote(data) : null;
     },
-    async remove(id) {
-      const { data, error } = await table().delete().eq('id', id).select('id');
+    async remove(id, userId) {
+      const { data, error } = await table().delete().eq('id', id).eq('owner_id', userId).select('id');
       if (error) throw storeError(error);
       return Array.isArray(data) && data.length > 0;
     },
@@ -170,7 +173,7 @@ export function createNotesApi({ verify, getStore }) {
     }
     if (request.method === 'GET') {
       return run(response, async (store) => {
-        const note = await store.get(id);
+        const note = await store.get(id, identity.userId);
         return note ? send(response, 200, note)
           : fail(response, 404, 'NOT_FOUND', '메모를 찾을 수 없습니다.');
       });
@@ -182,12 +185,12 @@ export function createNotesApi({ verify, getStore }) {
           'title(1~200자)과 body(5000자 이하) 문자열이 필요합니다.');
       }
       return run(response, async (store) => {
-        const note = await store.update(id, { title: fields.title, content: fields.content });
+        const note = await store.update(id, identity.userId, { title: fields.title, content: fields.content });
         return note ? send(response, 200, note)
           : fail(response, 404, 'NOT_FOUND', '메모를 찾을 수 없습니다.');
       });
     }
-    return run(response, async (store) => (await store.remove(id))
+    return run(response, async (store) => (await store.remove(id, identity.userId))
       ? send(response, 200, { id })
       : fail(response, 404, 'NOT_FOUND', '메모를 찾을 수 없습니다.'));
   }

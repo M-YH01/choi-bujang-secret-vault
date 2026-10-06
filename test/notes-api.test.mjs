@@ -40,20 +40,25 @@ function memoryStore() {
   return {
     rows,
     async list(userId) {
-      return [...rows.values()].filter((r) => r.ownerId === userId || r.ownerId === null).map(view);
+      return [...rows.values()].filter((r) => r.ownerId === userId).map(view);
     },
-    async get(id) { return rows.has(id) ? view(rows.get(id)) : null; },
+    async get(id, userId) { const r = rows.get(id); return r && r.ownerId === userId ? view(r) : null; },
     async create({ id, ownerId, title, content }) {
       if (rows.has(id)) { const e = new Error('dup'); e.code = 'CONFLICT'; throw e; }
       rows.set(id, { id, ownerId, title, content });
       return id;
     },
-    async update(id, { title, content }) {
-      if (!rows.has(id)) return null;
-      rows.set(id, { ...rows.get(id), title, content });
+    async update(id, userId, { title, content }) {
+      const r = rows.get(id);
+      if (!r || r.ownerId !== userId) return null;
+      rows.set(id, { ...r, title, content, ownerId: userId });
       return view(rows.get(id));
     },
-    async remove(id) { return rows.delete(id); },
+    async remove(id, userId) {
+      const r = rows.get(id);
+      if (!r || r.ownerId !== userId) return false;
+      return rows.delete(id);
+    },
   };
 }
 
@@ -172,13 +177,50 @@ test('list, read, update and delete work for a logged-in user', async () => {
   assert.equal((await call(api.item, req('GET', { token: 'tokA', id: 'not-a-uuid' }))).statusCode, 404);
 });
 
-test('known weakness: another logged-in user can still change a memo by id (fixed in step 4)', async () => {
-  const { api } = setup();
+test('another logged-in user cannot read, change, delete or take over a memo by id', async () => {
+  const { store, api } = setup();
   const { body: { id } } = await call(api.collection, req('POST', { token: 'tokA', body: { title: 'A의 메모', body: '비공개여야 함' } }));
-  const read = await call(api.item, req('GET', { token: 'tokB', id }));
-  assert.equal(read.statusCode, 200, '4단계 전에는 소유자를 검사하지 않습니다.');
-  const edit = await call(api.item, req('PUT', { token: 'tokB', id, body: { title: 'B가 고침', body: 'x' } }));
-  assert.equal(edit.statusCode, 200);
+  const notFound = (res) => { assert.equal(res.statusCode, 404); assert.equal(res.body.error, 'NOT_FOUND'); assert.equal(JSON.stringify(res.body).includes('비공개'), false); };
+  notFound(await call(api.item, req('GET', { token: 'tokB', id })));
+  notFound(await call(api.item, req('PUT', { token: 'tokB', id, body: { title: 'B가 고침', body: 'x', owner_id: B } })));
+  notFound(await call(api.item, req('DELETE', { token: 'tokB', id })));
+  // 없는 번호와 남의 번호는 똑같이 보입니다.
+  const missing = await call(api.item, req('GET', { token: 'tokB', id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' }));
+  assert.deepEqual(missing.body, (await call(api.item, req('GET', { token: 'tokB', id }))).body);
+  // A의 메모는 그대로이고 주인도 그대로입니다.
+  assert.deepEqual(store.rows.get(id), { id, ownerId: A, title: 'A의 메모', content: '비공개여야 함' });
+  const bList = await call(api.collection, req('GET', { token: 'tokB' }));
+  assert.equal(bList.body.some((n) => n.id === id), false);
+  // 본문에 owner_id를 넣어 자기 메모의 주인을 바꾸려 해도 무시됩니다.
+  const own = await call(api.item, req('PUT', { token: 'tokA', id, body: { title: '고침', body: 'y', owner_id: B } }));
+  assert.equal(own.statusCode, 200);
+  assert.equal(store.rows.get(id).ownerId, A);
+  assert.equal((await call(api.item, req('DELETE', { token: 'tokA', id }))).statusCode, 200);
+});
+
+test('memos without an owner are visible to nobody (default deny)', async () => {
+  const { api } = setup();
+  for (const token of ['tokA', 'tokB']) {
+    assert.equal((await call(api.collection, req('GET', { token }))).body.length, 0);
+    assert.equal((await call(api.item, req('GET', { token, id: OTHER_ID }))).statusCode, 404);
+    assert.equal((await call(api.item, req('PUT', { token, id: OTHER_ID, body: { title: 't', body: 'b' } }))).statusCode, 404);
+    assert.equal((await call(api.item, req('DELETE', { token, id: OTHER_ID }))).statusCode, 404);
+  }
+});
+
+test('the Supabase store filters every read, update and delete by owner_id', async () => {
+  const urls = [];
+  await withFetch(async (input, init) => {
+    urls.push({ method: init?.method ?? input?.method ?? 'GET', url: decodeURIComponent(String(input?.url ?? input)), body: init?.body });
+    return jsonResponse([{ id: OTHER_ID, title: 'T', content: 'C' }]);
+  }, async () => {
+    const store = storeFor();
+    await store.list(A); await store.get(OTHER_ID, A); await store.update(OTHER_ID, A, { title: 'T', content: 'C' }); await store.remove(OTHER_ID, A);
+  });
+  assert.equal(urls.length, 4);
+  for (const u of urls) assert.ok(u.url.includes(`owner_id=eq.${A}`), `${u.method} 요청에 owner_id 조건이 없습니다.`);
+  assert.equal(urls.some((u) => u.url.includes('owner_id.is.null')), false);
+  assert.equal(JSON.parse(urls[2].body).owner_id, A);
 });
 
 test('other HTTP methods are rejected', async () => {
@@ -218,7 +260,7 @@ test('the Supabase store reads study_notes with the server key and maps content 
     const notes = await storeFor().list(A);
     assert.deepEqual(notes, [{ id: A, title: 'T', body: 'C' }]);
     assert.ok(seen.url.startsWith(`${FAKE_URL}/rest/v1/study_notes`));
-    assert.ok(seen.url.includes(`owner_id.eq.${A}`) && seen.url.includes('owner_id.is.null'));
+    assert.ok(seen.url.includes(`owner_id=eq.${A}`) && !seen.url.includes('owner_id.is.null'));
     assert.equal(seen.key, FAKE_KEY);
     assert.equal(logged.length, 0);
   });
@@ -254,8 +296,8 @@ test('the API turns a store failure into a generic 502 without secrets', async (
   } finally { console.error = saved; }
 });
 
-test('aleph.config.json is ready for step 3 and the login helper accepts it', async () => {
-  assert.equal(config.step, 3);
+test('aleph.config.json is ready for step 4 and the login helper accepts it', async () => {
+  assert.equal(config.step, 4);
   assert.deepEqual(Object.keys(config.identityProvider).sort(), ['audience', 'issuer', 'jwksUrl']);
   assert.equal(config.identityProvider.jwksUrl, `${config.identityProvider.issuer}/.well-known/jwks.json`);
   assert.ok(config.identityProvider.issuer.endsWith('.supabase.co/auth/v1'));
