@@ -17,6 +17,7 @@
 - 서버 함수는 환경변수 `SUPABASE_URL`과 `SUPABASE_SECRET_KEY`를 읽습니다. Vercel의 Project Settings > Environment Variables에 직접 넣고, 넣은 뒤 다시 배포하세요. 비밀 키는 코드·Git·README·브라우저 파일·응답·로그에 넣지 않습니다. 환경변수가 없으면 함수는 500 `NOTES_NOT_CONFIGURED`만 돌려줍니다.
 - `data.json`과 `public/data.json`의 `notes`는 비어 있고, 빌드(`scripts/build-public.mjs`)는 `notes`에 항목이 있으면 실패합니다. 그래서 `/data.json`에는 메모가 나오지 않습니다.
 - `aleph.config.json`의 `step`은 1로 둡니다. `scripts/deployment-identity.mjs`와 `src/attack-check.mjs`가 step 1만 허용하므로, 이후 단계에서 함께 바꿉니다.
+- 빌드가 만드는 `/aleph.json`에는 `database` 칸(Supabase 주소, 공개 키, 테이블 이름 `study_notes`)이 들어갑니다. 심판이 공개 키로 직접 요청해 보기 위한 값입니다. 값은 Vercel 환경변수 `SUPABASE_URL`(`https://….supabase.co`)과 `SUPABASE_PUBLISHABLE_KEY`(`sb_publishable_`로 시작하는 공개 키)에서 읽고, 하나라도 없거나 형식이 다르면 빌드가 실패합니다. 서버 전용 `SUPABASE_SECRET_KEY`는 이 파일에 절대 넣지 않으며, secret 키 모양의 값은 빌드가 거부합니다.
 - 다시 실행: `npm run test:notes`, `npm run test:r5`, `npm run build -- --local`
 - 저장점 「2단계」: `aleph.config.json`의 `repoUrl`과 `publicAppUrl`을 실제 저장소와 배포 주소로 채웠습니다(`judgeIssuer`는 그대로). 제출 묶음은 `npm run bundle`로 만들며, 커밋하지 않는 `bundle-notes.json`에 이번 단계에서 한 일을 적어 둬야 합니다. `bundle`은 실제 배포 주소로 요청을 보내므로 인터넷에 연결된 컴퓨터에서 실행합니다.
 - 아직 하지 않은 것: 3단계의 `identityProvider`와 `allowedRoutes`는 비어 있고, `src/attack-check.mjs`는 1단계의 `/data.json` 점검 하나만 실행합니다(`/api/notes` 점검은 미실행).
