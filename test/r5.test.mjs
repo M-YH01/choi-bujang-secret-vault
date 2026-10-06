@@ -106,8 +106,9 @@ test('step 3 identity adds the login issuer and routes, tied to the same Supabas
   assert.throws(() => deploymentIdentity(env, { ...config3, identityProvider: null }));
   assert.throws(() => deploymentIdentity(env, { ...config3, allowedRoutes: [] }));
   assert.throws(() => deploymentIdentity(env, { ...config3, allowedRoutes: ['api/notes'] }));
-  assert.throws(() => deploymentIdentity(env, { ...config3, step: 5 }));
+  assert.throws(() => deploymentIdentity(env, { ...config3, step: 6 }));
   assert.equal(deploymentIdentity(env, { ...config3, step: 4 }).step, 4);
+  assert.equal('originalApiUrl' in deploymentIdentity(env, { ...config3, step: 4 }), false);
   // 발급자가 다른 프로젝트를 가리키면 거부합니다.
   assert.throws(() => deploymentIdentity(env, { ...config3, identityProvider: {
     ...config3.identityProvider,
@@ -156,6 +157,55 @@ test('step 4 attack check adds the anonymous single-note request and leaves A/B 
     assert.deepEqual(results.map((r) => r.attackId), ['anonymous_note_read', 'anonymous_note_list', 'anonymous_note_item']);
     assert.match(urls[2], /\/api\/notes\/00000000-0000-4000-8000-000000000000$/u);
     assert.match(results[2].observed, /JSON 오류로 거부됨 \(HTTP 401\)/u);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+const config5 = { ...config3, step: 5, originalApiUrl: 'https://abcdefghijklmnopqrst.supabase.co/rest/v1/study_notes' };
+
+test('step 5 identity publishes the original API address only for the same project and table', () => {
+  const identity = deploymentIdentity(env, config5);
+  assert.equal(identity.step, 5);
+  assert.equal(identity.originalApiUrl, config5.originalApiUrl);
+  assert.deepEqual(identity.allowedRoutes, config5.allowedRoutes);
+  for (const bad of [null, '', 'http://abcdefghijklmnopqrst.supabase.co/rest/v1/study_notes',
+    'https://abcdefghijklmnopqrst.supabase.co/rest/v1/study_notes?select=*',
+    'https://abcdefghijklmnopqrst.supabase.co/rest/v1/other_table',
+    'https://zzzzzzzzzzzzzzzzzzzz.supabase.co/rest/v1/study_notes']) {
+    assert.throws(() => deploymentIdentity(env, { ...config5, originalApiUrl: bad }));
+  }
+});
+
+test('step 5 attack check calls the original address with the public key and records only status', async () => {
+  const originalFetch = globalThis.fetch;
+  const PUBLIC_KEY = `sb_publishable_${'k'.repeat(24)}`;
+  let direct;
+  const run = async (directResponse) => {
+    globalThis.fetch = async (url, init) => {
+      const text = String(url);
+      if (text.endsWith('/data.json')) return new Response(JSON.stringify({ notes: [] }), { status: 200, headers: { 'content-type': 'application/json' } });
+      if (text.endsWith('/aleph.json')) return new Response(JSON.stringify({ database: { publishableKey: PUBLIC_KEY } }), { status: 200, headers: { 'content-type': 'application/json' } });
+      if (text.startsWith(config5.originalApiUrl)) { direct = { url: text, key: new Headers(init.headers).get('apikey') }; return directResponse(); }
+      return new Response(JSON.stringify({ error: 'UNAUTHORIZED' }), { status: 401, headers: { 'content-type': 'application/json' } });
+    };
+    const results = await runAttackChecks(config5);
+    return results.at(-1);
+  };
+  try {
+    const denied = await run(() => new Response(JSON.stringify({ code: '42501', message: '비밀 메모 본문' }), { status: 401, headers: { 'content-type': 'application/json' } }));
+    assert.equal(denied.attackId, 'direct_original_read');
+    assert.match(denied.observed, /거부됨 \(HTTP 401\)/u);
+    assert.equal(direct.key, PUBLIC_KEY);
+    assert.ok(direct.url.startsWith(config5.originalApiUrl));
+    const empty = await run(() => new Response('[]', { status: 200, headers: { 'content-type': 'application/json' } }));
+    assert.match(empty.observed, /메모가 0건/u);
+    const leaked = await run(() => new Response(JSON.stringify([{ id: 'x', title: '비밀 메모 본문' }]), { status: 200, headers: { 'content-type': 'application/json' } }));
+    assert.match(leaked.observed, /메모가 읽힘/u);
+    for (const r of [denied, empty, leaked]) {
+      assert.deepEqual(Object.keys(r).sort(), ['attackId', 'expected', 'observed']);
+      assert.equal(JSON.stringify(r).includes(PUBLIC_KEY) || JSON.stringify(r).includes('비밀 메모'), false);
+    }
   } finally {
     globalThis.fetch = originalFetch;
   }

@@ -72,8 +72,44 @@ async function anonymousNoteItem(app) {
       : `로그인 없는 요청이 JSON 오류로 거부되지 않음 (HTTP ${response.status})` };
 }
 
+// 5단계: 공개 키로 원본 자료 주소를 직접 불러도 메모가 나오지 않는가.
+// 공개 키는 배포가 공개한 /aleph.json에서 읽어 요청 헤더에만 쓰고, 키와 응답 본문은 기록하지 않습니다.
+async function directOriginalRead(config, app) {
+  const attackId = 'direct_original_read';
+  const expected = '공개 키로 원본 자료 주소를 직접 불러 메모 읽기';
+  let original;
+  try {
+    original = new URL(config.originalApiUrl);
+  } catch {
+    throw new Error('aleph.config.json의 originalApiUrl을 확인해 주세요.');
+  }
+  if (original.protocol !== 'https:' || original.search || original.username || original.password) {
+    throw new Error('aleph.config.json의 originalApiUrl은 쿼리 없는 HTTPS 주소여야 합니다.');
+  }
+  const info = await (await request(new URL('/aleph.json', app))).json().catch(() => null);
+  const key = info?.database?.publishableKey;
+  if (typeof key !== 'string' || !key) {
+    return { attackId, expected, observed: '배포의 /aleph.json에서 공개 키를 읽지 못해 점검하지 못함' };
+  }
+  const target = new URL(original);
+  target.searchParams.set('select', 'id');
+  target.searchParams.set('limit', '1');
+  const response = await fetch(target, {
+    redirect: 'error', signal: AbortSignal.timeout(10000),
+    headers: { Accept: 'application/json', apikey: key },
+  });
+  let rows = null;
+  if (response.ok) {
+    try { const data = await response.json(); rows = Array.isArray(data) ? data.length : null; } catch { /* 본문 없음 */ }
+  }
+  const observed = !response.ok ? `공개 키 직접 요청이 거부됨 (HTTP ${response.status})`
+    : rows === 0 ? `공개 키 직접 요청이 성공했지만 메모가 0건 (HTTP ${response.status})`
+      : `공개 키 직접 요청으로 메모가 읽힘 (HTTP ${response.status})`;
+  return { attackId, expected, observed };
+}
+
 export async function runAttackChecks(config) {
-  if (![1, 3, 4].includes(config.step)) {
+  if (![1, 3, 4, 5].includes(config.step)) {
     throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
   }
   const app = appOrigin(config);
@@ -84,5 +120,6 @@ export async function runAttackChecks(config) {
   const results = [await anonymousDataJson({ ...config, sampleMarker: config.sampleMarker }, app),
     await anonymousNoteList(app)];
   if (config.step >= 4) results.push(await anonymousNoteItem(app));
+  if (config.step >= 5) results.push(await directOriginalRead(config, app));
   return results;
 }
