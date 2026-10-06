@@ -17,7 +17,9 @@
 - 서버 함수는 환경변수 `SUPABASE_URL`과 `SUPABASE_SECRET_KEY`를 읽습니다. Vercel의 Project Settings > Environment Variables에 직접 넣고, 넣은 뒤 다시 배포하세요. 비밀 키는 코드·Git·README·브라우저 파일·응답·로그에 넣지 않습니다. 환경변수가 없으면 함수는 500 `NOTES_NOT_CONFIGURED`만 돌려줍니다.
 - `data.json`과 `public/data.json`의 `notes`는 비어 있고, 빌드(`scripts/build-public.mjs`)는 `notes`에 항목이 있으면 실패합니다. 그래서 `/data.json`에는 메모가 나오지 않습니다.
 - `aleph.config.json`의 `step`은 1로 둡니다. `scripts/deployment-identity.mjs`와 `src/attack-check.mjs`가 step 1만 허용하므로, 이후 단계에서 함께 바꿉니다.
-- 다시 실행: `npm run test:notes`, `npm run build -- --local`
+- 다시 실행: `npm run test:notes`, `npm run test:r5`, `npm run build -- --local`
+- 저장점 「2단계」: `aleph.config.json`의 `repoUrl`과 `publicAppUrl`을 실제 저장소와 배포 주소로 채웠습니다(`judgeIssuer`는 그대로). 제출 묶음은 `npm run bundle`로 만들며, 커밋하지 않는 `bundle-notes.json`에 이번 단계에서 한 일을 적어 둬야 합니다. `bundle`은 실제 배포 주소로 요청을 보내므로 인터넷에 연결된 컴퓨터에서 실행합니다.
+- 아직 하지 않은 것: 3단계의 `identityProvider`와 `allowedRoutes`는 비어 있고, `src/attack-check.mjs`는 1단계의 `/data.json` 점검 하나만 실행합니다(`/api/notes` 점검은 미실행).
 
 ### 알려진 약점
 
@@ -61,7 +63,7 @@
 
 `vercel.json`은 정적 결과물 `public`을 배포합니다. 빌드 명령 `npm run build`는 Vercel이 제공하는 GitHub 저장소 소유자·이름, 커밋 SHA, 배포 URL을 검증하고 `public/aleph.json`을 생성합니다. 이 값이 없으면 빌드가 실패하므로, 성공한 것처럼 빈 주소를 내보내지 않습니다. `aleph.json`의 내용만으로 저장소 소유권이나 방어 성공을 인정하지 않습니다. 심판이 공개 저장소의 실제 커밋과 배포된 자료를 따로 대조해야 합니다.
 
-`aleph.config.json`의 `repoUrl`과 `publicAppUrl`은 이전 제출 묶음 방식의 자리표시자입니다. 1단계에서는 학생이 편집하지 않습니다. 2단계 이후 코딩 도구가 필요한 설정과 보호 기능을 단계별로 작성합니다. `npm run bundle`과 `bundle-notes.json`도 1단계의 세 걸음에는 포함되지 않습니다.
+`aleph.config.json`의 `repoUrl`과 `publicAppUrl`은 시작 틀에서는 이전 제출 묶음 방식의 자리표시자였고, 1단계에서는 학생이 편집하지 않습니다. 이 저장소는 2단계 저장점에서 실제 주소로 채웠습니다. 2단계 이후 코딩 도구가 필요한 설정과 보호 기능을 단계별로 작성합니다. `npm run bundle`과 `bundle-notes.json`도 1단계의 세 걸음에는 포함되지 않습니다.
 
 로컬에서 가상 화면만 확인할 때는 `npm run build -- --local`을 사용합니다. 로컬 실행은 Vercel 배포나 심판 접수를 증명하지 않습니다. 저장소의 `src/attack-check.mjs`는 실제 배포가 된 뒤 `/data.json`을 비로그인으로 요청해 공개 가상 메모의 확인 표시를 읽습니다. 2단계 변경 뒤에는 `/data.json`에 메모가 없으므로 이 점검이 "확인 표시가 보이지 않음"으로 기록되는 것이 정상입니다.
 
