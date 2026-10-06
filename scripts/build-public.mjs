@@ -6,8 +6,8 @@ const root = resolve(import.meta.dirname, '..');
 const source = resolve(root, 'data.json');
 const output = resolve(root, 'public', 'data.json');
 const config = JSON.parse(await readFile(resolve(root, 'aleph.config.json'), 'utf8'));
-if (config.step !== 1) {
-  throw new Error('1단계 이후에는 공개 data.json 복사를 끝내고 보호된 자료 API로 바꾸세요.');
+if (![1, 2, 3].includes(config.step)) {
+  throw new Error('이 단계의 빌드 흐름을 scripts/build-public.mjs에 맞춰 주세요. (현재 step 1~3 지원)');
 }
 const data = JSON.parse(await readFile(source, 'utf8'));
 if (!Array.isArray(data.notes)) {

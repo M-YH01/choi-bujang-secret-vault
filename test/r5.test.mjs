@@ -84,3 +84,60 @@ test('first attack check reads public data.json without credentials', async () =
     globalThis.fetch = originalFetch;
   }
 });
+
+const config3 = {
+  ...config,
+  step: 3,
+  identityProvider: {
+    issuer: 'https://abcdefghijklmnopqrst.supabase.co/auth/v1',
+    audience: 'authenticated',
+    jwksUrl: 'https://abcdefghijklmnopqrst.supabase.co/auth/v1/.well-known/jwks.json',
+  },
+  allowedRoutes: ['/api/notes', '/api/notes/:id'],
+};
+
+test('step 3 identity adds the login issuer and routes, tied to the same Supabase project', () => {
+  const identity = deploymentIdentity(env, config3);
+  assert.equal(identity.step, 3);
+  assert.deepEqual(identity.identityProvider, config3.identityProvider);
+  assert.deepEqual(identity.allowedRoutes, config3.allowedRoutes);
+  assert.equal(identity.database.table, 'study_notes');
+  assert.equal('sampleMarker' in identity, false);
+  assert.throws(() => deploymentIdentity(env, { ...config3, identityProvider: null }));
+  assert.throws(() => deploymentIdentity(env, { ...config3, allowedRoutes: [] }));
+  assert.throws(() => deploymentIdentity(env, { ...config3, allowedRoutes: ['api/notes'] }));
+  assert.throws(() => deploymentIdentity(env, { ...config3, step: 4 }));
+  // 발급자가 다른 프로젝트를 가리키면 거부합니다.
+  assert.throws(() => deploymentIdentity(env, { ...config3, identityProvider: {
+    ...config3.identityProvider,
+    issuer: 'https://zzzzzzzzzzzzzzzzzzzz.supabase.co/auth/v1',
+    jwksUrl: 'https://zzzzzzzzzzzzzzzzzzzz.supabase.co/auth/v1/.well-known/jwks.json',
+  } }));
+});
+
+test('step 3 attack check records anonymous results without reading note bodies', async () => {
+  const originalFetch = globalThis.fetch;
+  const urls = [];
+  try {
+    globalThis.fetch = async (url) => {
+      urls.push(String(url));
+      if (String(url).endsWith('/data.json')) {
+        return new Response(JSON.stringify({ notes: [] }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({ error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' }),
+        { status: 401, headers: { 'content-type': 'application/json' } });
+    };
+    const results = await runAttackChecks(config3);
+    assert.deepEqual(urls, ['https://student-defense.vercel.app/data.json', 'https://student-defense.vercel.app/api/notes']);
+    assert.deepEqual(results.map((r) => r.attackId), ['anonymous_note_read', 'anonymous_note_list']);
+    assert.match(results[0].observed, /보이지 않음/u);
+    assert.match(results[1].observed, /JSON 오류로 거부됨 \(HTTP 401\)/u);
+    for (const r of results) assert.deepEqual(Object.keys(r).sort(), ['attackId', 'expected', 'observed']);
+
+    globalThis.fetch = async () => new Response('<html>not json</html>', { status: 200, headers: { 'content-type': 'text/html' } });
+    const [, open] = await runAttackChecks(config3);
+    assert.match(open.observed, /거부되지 않음 \(HTTP 200\)/u);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

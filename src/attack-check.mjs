@@ -1,7 +1,7 @@
 // The student changes this check as each stage adds an attack to the same app.
 // Never return tokens, private keys, real names, or note bodies.
-export async function runAttackChecks(config) {
-  if (config.step !== 1) throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
+// 실제로 보낸 요청의 결과만 기록합니다. 심판의 판정이 아닙니다.
+function appOrigin(config) {
   let app;
   try {
     app = new URL(config.publicAppUrl);
@@ -12,10 +12,17 @@ export async function runAttackChecks(config) {
       || app.pathname !== '/' || app.hostname.endsWith('.example')) {
     throw new Error('aleph.config.json의 실제 배포 주소를 먼저 넣어 주세요.');
   }
+  return app;
+}
+
+const request = (url) => fetch(url, {
+  redirect: 'error', signal: AbortSignal.timeout(10000), headers: { Accept: 'application/json' },
+});
+
+// 1단계: 비로그인 요청으로 공개 /data.json에서 가상 메모를 읽을 수 있는가.
+async function anonymousDataJson(config, app) {
   if (typeof config.sampleMarker !== 'string' || !config.sampleMarker) throw new Error('가상 메모의 확인 표시를 넣어 주세요.');
-  const response = await fetch(new URL('/data.json', app), {
-    redirect: 'error', signal: AbortSignal.timeout(10000),
-  });
+  const response = await request(new URL('/data.json', app));
   let visible = false;
   if (response.ok) {
     try {
@@ -26,6 +33,35 @@ export async function runAttackChecks(config) {
       // A non-JSON response is a failed check, not a successful deployment.
     }
   }
-  return [{ attackId: 'anonymous_note_read', expected: '비로그인 화면에서 가상 메모를 확인',
-    observed: visible ? '비로그인 요청에서 공개 가상 메모 확인 표시가 보임' : `비로그인 요청에서 확인 표시가 보이지 않음 (HTTP ${response.status})` }];
+  return { attackId: 'anonymous_note_read', expected: '비로그인 화면에서 가상 메모를 확인',
+    observed: visible ? '비로그인 요청에서 공개 가상 메모 확인 표시가 보임' : `비로그인 요청에서 확인 표시가 보이지 않음 (HTTP ${response.status})` };
+}
+
+// 3단계: 로그인 없이 /api/notes 목록을 부르면 401·403과 JSON 오류로 거부되는가.
+async function anonymousNoteList(app) {
+  const response = await request(new URL('/api/notes', app));
+  const isJson = (response.headers.get('content-type') ?? '').includes('json');
+  let hasError = false;
+  try {
+    const data = await response.json();
+    hasError = typeof data?.error === 'string';
+  } catch {
+    // HTML이나 빈 응답은 거부로 인정하지 않습니다.
+  }
+  const rejected = (response.status === 401 || response.status === 403) && isJson && hasError;
+  return { attackId: 'anonymous_note_list', expected: '로그인 없이 /api/notes 메모 목록을 읽기',
+    observed: rejected ? `로그인 없는 요청이 JSON 오류로 거부됨 (HTTP ${response.status})`
+      : `로그인 없는 요청이 JSON 오류로 거부되지 않음 (HTTP ${response.status})` };
+}
+
+export async function runAttackChecks(config) {
+  if (config.step !== 1 && config.step !== 3) {
+    throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
+  }
+  const app = appOrigin(config);
+  if (config.step === 1) return [await anonymousDataJson(config, app)];
+  // 3단계에서는 /data.json에 메모가 없는지, /api/notes가 로그인 없이 거부되는지 함께 봅니다.
+  // 정상 로그인(A)과 타인(B) 요청은 토큰이 필요해서 이 점검에서는 실행하지 않습니다(미실행).
+  return [await anonymousDataJson({ ...config, sampleMarker: config.sampleMarker }, app),
+    await anonymousNoteList(app)];
 }
