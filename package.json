@@ -7,6 +7,7 @@
     "test:r5": "node --test test/r5.test.mjs",
     "test:package": "node --test test/package-starter.test.mjs",
     "test:notes": "node --test test/notes-api.test.mjs",
+    "test:decider": "node --test test/decider.test.mjs",
     "bundle": "node scripts/bundle.mjs",
     "decider:test": "node scripts/decider-test.mjs",
     "detect:test": "node scripts/detect-test.mjs",

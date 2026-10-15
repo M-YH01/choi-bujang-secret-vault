@@ -106,7 +106,7 @@ test('step 3 identity adds the login issuer and routes, tied to the same Supabas
   assert.throws(() => deploymentIdentity(env, { ...config3, identityProvider: null }));
   assert.throws(() => deploymentIdentity(env, { ...config3, allowedRoutes: [] }));
   assert.throws(() => deploymentIdentity(env, { ...config3, allowedRoutes: ['api/notes'] }));
-  assert.throws(() => deploymentIdentity(env, { ...config3, step: 6 }));
+  assert.throws(() => deploymentIdentity(env, { ...config3, step: 7 }));
   assert.equal(deploymentIdentity(env, { ...config3, step: 4 }).step, 4);
   assert.equal('originalApiUrl' in deploymentIdentity(env, { ...config3, step: 4 }), false);
   // 발급자가 다른 프로젝트를 가리키면 거부합니다.
@@ -209,4 +209,10 @@ test('step 5 attack check calls the original address with the public key and rec
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test('step 6 identity keeps the step 5 fields', () => {
+  const identity = deploymentIdentity(env, { ...config5, step: 6 });
+  assert.equal(identity.step, 6);
+  assert.equal(identity.originalApiUrl, config5.originalApiUrl);
 });
