@@ -345,3 +345,19 @@ test('the number-less route file reuses the same handler', async () => {
   const source = await readFile(resolve(root, 'api/restore/notes/index.js'), 'utf8');
   assert.match(source, /restoreApi\.restoreOne\(request, response\)/u);
 });
+
+test('requests rejected before the copy check leave only a short code in the log, never the login value', async () => {
+  const { api } = seed();
+  const originalWarn = console.warn;
+  const lines = [];
+  console.warn = (...parts) => lines.push(parts.join(' '));
+  try {
+    await call(api, req('GET', { token: 'tokB', id: NOTE_B }));
+    await call(api, req('POST', { id: NOTE_B }));
+    await call(api, req('POST', { token: 'bad', id: NOTE_B }));
+  } finally {
+    console.warn = originalWarn;
+  }
+  assert.deepEqual(lines, ['restore_rejected method GET with_login', 'restore_rejected login no_login', 'restore_rejected login with_login']);
+  assert.equal(lines.join(' ').includes('tokB') || lines.join(' ').includes('bad '), false);
+});

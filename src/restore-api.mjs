@@ -58,12 +58,18 @@ export function createRestoreApi({ verify, getStore }) {
   const authenticate = createAuthenticator(verify);
 
   async function restoreOne(request, response) {
+    // 요청이 이 경로까지 왔는지 알 수 있게 짧은 코드만 남깁니다(요청 방식과 로그인 값이 있었는지 여부뿐, 값 자체는 기록하지 않음).
+    const hasLogin = typeof request.headers?.authorization === 'string' && request.headers.authorization.length > 0;
     if (request.method !== 'POST') {
+      console.warn('restore_rejected', 'method', String(request.method).slice(0, 8), hasLogin ? 'with_login' : 'no_login');
       response.setHeader('Allow', 'POST');
       return fail(response, 405, 'METHOD_NOT_ALLOWED', '허용되지 않는 요청 방식입니다.');
     }
     const identity = await authenticate(request, response);
-    if (!identity) return undefined;
+    if (!identity) {
+      console.warn('restore_rejected', 'login', hasLogin ? 'with_login' : 'no_login');
+      return undefined;
+    }
     const userId = identity.userId;
 
     let input = request.body;

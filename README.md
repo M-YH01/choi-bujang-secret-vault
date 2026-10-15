@@ -36,6 +36,7 @@
 - 이미 같으면 아무것도 쓰지 않습니다. 감사 `started` 기록이 실패하면 쓰기 전에 멈춥니다. 쓴 뒤 다시 읽어 해시를 대조하고 `restored`를 기록합니다. 본문은 응답·로그·감사에 넣지 않습니다. 다른 메모와 다른 사람의 행은 건드리지 않습니다.
 - 메모 번호는 경로의 `:id`를 우선 쓰고, 번호 없는 주소 `POST /api/restore/notes`로 부르면 본문의 `id`(또는 `noteId`)에서 읽습니다. 로그인·소유자·해시 검사는 두 방식 모두 같고, 번호가 없거나 UUID가 아니거나 남의 것이면 같은 404입니다.
 - 로그인한 요청이 거절되면 이유만 감사 표에 한 줄 남깁니다(`denied_no_backup`, `denied_not_owner`, `denied_bad_id`, `denied_conflict`). 응답은 이유와 상관없이 같은 404이고, 번호·본문은 기록하지 않습니다. 기록이 실패해도 응답은 바뀌지 않습니다. 로그인 없는 요청은 기록하지 않습니다.
+- 요청이 복구 경로까지 왔지만 로그인·요청 방식 단계에서 거절되면 Vercel 로그에 `restore_rejected method|login`과 로그인 값이 있었는지 여부만 남습니다(값은 기록하지 않음).
 - 본문 `{"dryRun": true}`를 보내면 쓰지 않고 "복원될 것인가"만 답합니다.
 - 성공 응답에는 사본 검증 결과(`backupVerified`, `backupVersion`)와 바뀔 항목의 이름(`changes`: `title`·`content`·`row_missing`)만 들어갑니다. 해시가 맞지 않으면 422와 `backupVerified: false`입니다. 제목·본문은 응답에 넣지 않습니다.
 
