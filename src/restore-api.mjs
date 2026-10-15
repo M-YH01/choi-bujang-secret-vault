@@ -66,13 +66,16 @@ export function createRestoreApi({ verify, getStore }) {
     if (!identity) return undefined;
     const userId = identity.userId;
 
-    const raw = request.query?.id;
-    const id = Array.isArray(raw) ? raw[0] : raw;
-    const notFound = () => fail(response, 404, 'NOT_FOUND', '복원할 사본을 찾을 수 없습니다.');
-    if (typeof id !== 'string' || !UUID.test(id)) return notFound();
-
     let input = request.body;
     if (typeof input === 'string') { try { input = JSON.parse(input); } catch { input = null; } }
+    const body = input && typeof input === 'object' && !Array.isArray(input) ? input : null;
+
+    // 복구할 메모 번호는 경로(:id)를 우선하고, 없으면 본문의 id 또는 noteId에서 읽습니다. 번호는 UUID여야 합니다.
+    const raw = request.query?.id;
+    const fromPath = Array.isArray(raw) ? raw[0] : raw;
+    const id = fromPath ?? body?.id ?? body?.noteId;
+    const notFound = () => fail(response, 404, 'NOT_FOUND', '복원할 사본을 찾을 수 없습니다.');
+    if (typeof id !== 'string' || !UUID.test(id)) return notFound();
     const dryRun = Boolean(input && typeof input === 'object' && !Array.isArray(input) && input.dryRun === true);
 
     let store;

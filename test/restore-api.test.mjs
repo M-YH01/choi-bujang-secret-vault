@@ -306,3 +306,30 @@ test('the auto-backup trigger SQL keeps the same hash formula, never overwrites 
   }
   assert.equal(/after update|after delete|@|sb_secret|eyJ/iu.test(sql), false);
 });
+
+test('the memo id may also come from the body, but every check still applies', async () => {
+  const { api, state, original } = seed();
+  const viaBody = await call(api, req('POST', { token: 'tokB', body: { id: NOTE_B } }));
+  assert.equal(viaBody.statusCode, 200);
+  assert.equal(viaBody.body.restored, true);
+  assert.equal(viaBody.body.backupVerified, true);
+  assert.equal(state.notes.get(NOTE_B).title, original.title);
+
+  const viaNoteId = seed();
+  assert.equal((await call(viaNoteId.api, req('POST', { token: 'tokB', body: JSON.stringify({ noteId: NOTE_B, dryRun: true }) }))).body.dryRun, true);
+
+  // 남의 번호, 번호 없음, UUID가 아닌 번호는 모두 같은 404입니다. 로그인이 없으면 401입니다.
+  const other = seed();
+  const wrong = await call(other.api, req('POST', { token: 'tokB', body: { id: NOTE_A } }));
+  assert.equal(wrong.statusCode, 404);
+  for (const body of [{}, { id: 'abc' }, { id: 5 }, null, '[]']) {
+    assert.equal((await call(other.api, req('POST', { token: 'tokB', body }))).statusCode, 404);
+  }
+  assert.equal((await call(other.api, req('POST', { body: { id: NOTE_B } }))).statusCode, 401);
+  assert.deepEqual(other.state.notes.get(NOTE_A), seed().state.notes.get(NOTE_A));
+});
+
+test('the number-less route file reuses the same handler', async () => {
+  const source = await readFile(resolve(root, 'api/restore/notes/index.js'), 'utf8');
+  assert.match(source, /restoreApi\.restoreOne\(request, response\)/u);
+});
