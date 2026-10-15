@@ -479,3 +479,12 @@
 - `xdr/privilege/respond.mjs`: block만 만료 시간·경보 번호가 있는 거부 규칙으로 바꿔 `xdr/deny-rules.json`에 넣고, 알림은 `xdr/alerts.log`에 한 줄씩 쌓습니다(두 파일은 Git에 올리지 않음). 같은 계정(user01 등)이 다른 주소에서는 정상 활동을 하므로 계정이 아니라 출발 주소 기준으로 규칙을 만듭니다.
 - 다시 실행: `npm run xdr:run -- privilege` → `xdr/privilege/result.json` (block 9 · alert 8 · record 9, 정상 사건 차단 0).
 - 한계: 거부 규칙 파일은 아직 `src/decider.mjs`에 연결하지 않았고 판정기 규칙은 고치지 않았습니다. 계정 세션을 실제로 거두는 일은 하지 않습니다. 이 결과는 내 PC 연습 실행이며 심판 판정이 아닙니다.
+
+## 보너스 xdr-06: 자료 빼돌리기 판정 (연습)
+
+- `xdr/exfiltration/read-alerts.mjs`: 가상 경보(`xdr/fixtures/exfiltration.json`)에서 시각·출발 주소·계정·수준·설명만 뽑습니다(확인용, decide.mjs가 불러오지 않음).
+- `xdr/exfiltration/patterns.json`: MITRE ATT&CK T1041·T1048 근거가 있는 패턴 5개(처음 보는 목적지로 대용량, 업무 시간 밖 압축 파일, 같은 목적지 반복, 대량 파일 복사, 뚜렷하지 않은 전송). 크기·횟수 기준(5천만 바이트, 파일 50개, 반복 8번)은 제가 연습용으로 정한 값입니다.
+- `xdr/exfiltration/decide.mjs`: 가져오기(import) 없는 순수 함수. 많이 나갔다는 핵심 신호(크기·파일 수·자료실 전체)가 있고 점수가 4점 이상(확신도 0.9)일 때만 block입니다. 실패·읽기만·아직 전송 없음 문장은 신호로 세지 않고, 목적지·시각 같은 보조 신호만으로는 막지 않으며, 평소 목적지는 점수를 깎습니다.
+- `xdr/exfiltration/respond.mjs`: block만 만료 시간·경보 번호가 있는 거부 규칙으로 바꿔 `xdr/deny-rules.json`에 넣고(`direction: destination`), 알림은 `xdr/alerts.log`에 한 줄씩 쌓습니다(두 파일은 Git에 올리지 않음). 출발 PC가 아니라 나간 목적지를 막으며, 정상·애매한 사건과 같은 목적지는 규칙에서 뺍니다.
+- 다시 실행: `npm run xdr:run -- exfiltration` → `xdr/exfiltration/result.json` (block 10 · alert 10 · record 10, 정상 사건 차단 0).
+- 한계: 거부 규칙 파일은 아직 `src/decider.mjs`에 연결하지 않았고 판정기 규칙은 고치지 않았습니다. 카드사 사고의 USB 반출은 네트워크 전송 경보로 보이지 않아 다루지 않습니다. 이 결과는 내 PC 연습 실행이며 심판 판정이 아닙니다.

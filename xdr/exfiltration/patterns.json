@@ -1,0 +1,38 @@
+{
+  "schema": "aleph.xdr.patterns.v1",
+  "moduleKey": "exfiltration",
+  "source": "MITRE ATT&CK T1041 Exfiltration Over C2 Channel (명령 통로로 유출), T1048 Exfiltration Over Alternative Protocol (다른 프로토콜로 유출)",
+  "note": "아래 크기·횟수 기준(대용량 5천만 바이트 이상, 파일 50개 이상, 반복 8번 이상)은 MITRE가 정한 값이 아니라 이 실습 경보 분포에 맞춰 학생이 정한 시험용 기준입니다. 카드사 사고의 USB 반출(물리 저장장치)은 이 네트워크 전송 경보로는 보이지 않아 다루지 않습니다.",
+  "patterns": [
+    {
+      "name": "large_transfer_to_new_destination",
+      "technique": "T1048",
+      "when": { "minBytes": 50000000, "signal": "처음 보는 목적지·목적지 여러 곳·평소 쓰지 않던 포트" },
+      "evidence": "T1048: 공격자는 평소 쓰지 않는 목적지나 통로로 자료를 내보내므로, 처음 보는 목적지로 가는 대용량 전송은 다른 프로토콜 유출의 대표 형태입니다."
+    },
+    {
+      "name": "offhours_archive_transfer",
+      "technique": "T1048",
+      "when": { "signal": "수업 시간 밖·업무 시간 밖의 압축 파일 또는 대용량 전송" },
+      "evidence": "T1048: 유출 전에 자료를 압축으로 묶어 사람이 적은 시간에 내보내는 일이 많아, 업무 시간 밖의 압축 파일 반출은 유출 준비·실행의 신호입니다."
+    },
+    {
+      "name": "repeated_large_transfer_same_destination",
+      "technique": "T1041",
+      "when": { "minRepeats": 8, "orSignal": "명령 통로 + 대용량" },
+      "evidence": "T1041: 공격자는 이미 열어 둔 명령 통로로 자료를 나눠 계속 보내므로, 같은 목적지로 대용량 전송이 반복되는 것은 명령 통로 유출 형태입니다."
+    },
+    {
+      "name": "bulk_file_copy_outbound",
+      "technique": "T1041",
+      "when": { "minFiles": 50, "orSignal": "자료실 전체 복사" },
+      "evidence": "T1041: 한 번에 수십~수백 건의 파일이 외부로 나가거나 자료실 전체가 복사되는 것은, 한 사람이 짧은 기간에 대량의 자료를 반출하는 유출 형태입니다."
+    },
+    {
+      "name": "transfer_signal_below_threshold",
+      "technique": "T1048",
+      "when": { "needsTag": true, "minLevel": 4, "maxPoints": 1 },
+      "evidence": "T1041/T1048 표시는 있으나 크기가 작거나 실패·읽기만이거나 평소 목적지라 뚜렷한 대량 반출 신호가 부족해, 정상 수업 전송과 구별되지 않으므로 알림으로만 남깁니다."
+    }
+  ]
+}

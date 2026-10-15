@@ -1,0 +1,191 @@
+{
+  "schema": "aleph.xdr.result.v1",
+  "moduleKey": "exfiltration",
+  "decisions": [
+    {
+      "alertId": "ex-01",
+      "action": "block",
+      "confidence": 0.98,
+      "reason": "bulk_file_copy_outbound (T1041): 대량 반출 신호가 여러 개 겹쳐 목적지를 막을 후보입니다"
+    },
+    {
+      "alertId": "ex-02",
+      "action": "block",
+      "confidence": 0.98,
+      "reason": "offhours_archive_transfer (T1048): 대량 반출 신호가 여러 개 겹쳐 목적지를 막을 후보입니다"
+    },
+    {
+      "alertId": "ex-03",
+      "action": "block",
+      "confidence": 0.98,
+      "reason": "repeated_large_transfer_same_destination (T1041): 대량 반출 신호가 여러 개 겹쳐 목적지를 막을 후보입니다"
+    },
+    {
+      "alertId": "ex-04",
+      "action": "block",
+      "confidence": 0.98,
+      "reason": "bulk_file_copy_outbound (T1041): 대량 반출 신호가 여러 개 겹쳐 목적지를 막을 후보입니다"
+    },
+    {
+      "alertId": "ex-05",
+      "action": "block",
+      "confidence": 0.98,
+      "reason": "bulk_file_copy_outbound (T1041): 대량 반출 신호가 여러 개 겹쳐 목적지를 막을 후보입니다"
+    },
+    {
+      "alertId": "ex-06",
+      "action": "block",
+      "confidence": 0.98,
+      "reason": "repeated_large_transfer_same_destination (T1041): 대량 반출 신호가 여러 개 겹쳐 목적지를 막을 후보입니다"
+    },
+    {
+      "alertId": "ex-07",
+      "action": "block",
+      "confidence": 0.98,
+      "reason": "large_transfer_to_new_destination (T1048): 대량 반출 신호가 여러 개 겹쳐 목적지를 막을 후보입니다"
+    },
+    {
+      "alertId": "ex-08",
+      "action": "block",
+      "confidence": 0.98,
+      "reason": "bulk_file_copy_outbound (T1041): 대량 반출 신호가 여러 개 겹쳐 목적지를 막을 후보입니다"
+    },
+    {
+      "alertId": "ex-09",
+      "action": "block",
+      "confidence": 0.98,
+      "reason": "repeated_large_transfer_same_destination (T1041): 대량 반출 신호가 여러 개 겹쳐 목적지를 막을 후보입니다"
+    },
+    {
+      "alertId": "ex-10",
+      "action": "block",
+      "confidence": 0.98,
+      "reason": "large_transfer_to_new_destination (T1048): 대량 반출 신호가 여러 개 겹쳐 목적지를 막을 후보입니다"
+    },
+    {
+      "alertId": "ex-11",
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "transfer_signal_below_threshold (T1048): 대량 반출 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "ex-12",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "transfer_signal_below_threshold (T1048): 대량 반출 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "ex-13",
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "transfer_signal_below_threshold (T1048): 대량 반출 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "ex-14",
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "transfer_signal_below_threshold (T1048): 대량 반출 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "ex-15",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "transfer_signal_below_threshold (T1048): 대량 반출 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "ex-16",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "transfer_signal_below_threshold (T1048): 대량 반출 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "ex-17",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "transfer_signal_below_threshold (T1048): 대량 반출 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "ex-18",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "transfer_signal_below_threshold (T1048): 대량 반출 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "ex-19",
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "transfer_signal_below_threshold (T1048): 대량 반출 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "ex-20",
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "transfer_signal_below_threshold (T1048): 대량 반출 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "ex-21",
+      "action": "record",
+      "confidence": 0.13,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    },
+    {
+      "alertId": "ex-22",
+      "action": "record",
+      "confidence": 0.12,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    },
+    {
+      "alertId": "ex-23",
+      "action": "record",
+      "confidence": 0.13,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    },
+    {
+      "alertId": "ex-24",
+      "action": "record",
+      "confidence": 0.13,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    },
+    {
+      "alertId": "ex-25",
+      "action": "record",
+      "confidence": 0.12,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    },
+    {
+      "alertId": "ex-26",
+      "action": "record",
+      "confidence": 0.13,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    },
+    {
+      "alertId": "ex-27",
+      "action": "record",
+      "confidence": 0.13,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    },
+    {
+      "alertId": "ex-28",
+      "action": "record",
+      "confidence": 0.12,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    },
+    {
+      "alertId": "ex-29",
+      "action": "record",
+      "confidence": 0.13,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    },
+    {
+      "alertId": "ex-30",
+      "action": "record",
+      "confidence": 0.13,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    }
+  ],
+  "counts": {
+    "block": 10,
+    "alert": 10,
+    "record": 10
+  }
+}
