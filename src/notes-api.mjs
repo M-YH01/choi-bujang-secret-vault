@@ -12,6 +12,7 @@
 // 4단계: 읽기·추가·수정·삭제 모두 "서버가 확인한 사용자 id = 행의 owner_id"일 때만 허용합니다.
 // 남의 메모와 없는 메모는 똑같이 404로 답해, 번호를 바꿔 보는 요청으로 존재 여부도 알 수 없게 합니다.
 // 주인이 없는(owner_id가 비어 있는) 행은 아무에게도 보이지 않습니다. 기본 거부입니다.
+import { defaultGate } from './device-approval.mjs';
 import { createClient } from '@supabase/supabase-js';
 import config from '../aleph.config.json' with { type: 'json' };
 import { createLoginVerifier } from './verify-login.mjs';
@@ -88,7 +89,7 @@ export const fail = (response, status, error, message) => send(response, status,
 export { storeError, UUID };
 
 // 로그인 확인: 메모 API와 복원 API가 같은 코드를 씁니다. 헤더가 없으면 확인기를 부르지 않고 401입니다.
-export function createAuthenticator(verify) {
+export function createAuthenticator(verify, gate = null) {
   return async function authenticate(request, response) {
     const authorization = request.headers?.authorization;
     if (typeof authorization !== 'string' || !authorization) {
@@ -108,6 +109,22 @@ export function createAuthenticator(verify) {
       response.setHeader('WWW-Authenticate', 'Bearer');
       fail(response, 401, 'UNAUTHORIZED', '로그인 정보가 올바르지 않습니다.');
       return null;
+    }
+    // 11단계: 로그인이 맞아도 승인된 기기가 아니면 보호 자료 API를 열지 않습니다. 확인 중 오류가 나도 열지 않습니다.
+    if (gate) {
+      let result;
+      try {
+        result = await gate(request, identity);
+      } catch {
+        console.error('device_gate_unavailable');
+        fail(response, 503, 'DEVICE_CHECK_UNAVAILABLE', '기기 확인을 하지 못했습니다. 잠시 뒤 다시 시도하세요.');
+        return null;
+      }
+      if (result?.allowed !== true) {
+        console.warn('device_not_approved', typeof result?.state === 'string' ? result.state : 'unknown');
+        send(response, 403, { error: 'DEVICE_NOT_APPROVED', message: '이 기기는 아직 승인되지 않았습니다.', deviceState: typeof result?.state === 'string' ? result.state : 'none' });
+        return null;
+      }
     }
     return identity;
   };
@@ -134,8 +151,8 @@ function readFields(request) {
 }
 
 // ---- API ------------------------------------------------------------------
-export function createNotesApi({ verify, getStore }) {
-  const authenticate = createAuthenticator(verify);
+export function createNotesApi({ verify, getStore, gate = null }) {
+  const authenticate = createAuthenticator(verify, gate);
 
   async function run(response, work) {
     try {
@@ -254,4 +271,4 @@ function defaultStore() {
   }));
 }
 
-export const notesApi = createNotesApi({ verify: defaultVerify, getStore: defaultStore });
+export const notesApi = createNotesApi({ verify: defaultVerify, getStore: defaultStore, gate: defaultGate });

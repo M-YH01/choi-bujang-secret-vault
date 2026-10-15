@@ -10,6 +10,7 @@
     "test:decider": "node --test test/decider.test.mjs",
     "test:detect": "node --test test/detect.test.mjs",
     "test:restore": "node --test test/restore-api.test.mjs",
+    "test:device": "node --test test/device.test.mjs",
     "bundle": "node scripts/bundle.mjs",
     "decider:test": "node scripts/decider-test.mjs",
     "detect:test": "node scripts/detect-test.mjs",

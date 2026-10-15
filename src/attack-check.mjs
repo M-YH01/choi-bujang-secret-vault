@@ -87,6 +87,20 @@ async function anonymousRestore(app) {
       : `로그인 없는 요청이 JSON 오류로 거부되지 않음 (HTTP ${response.status})` };
 }
 
+// 11단계: 로그인 없이 기기 승인 상태를 물어도 거부되는가(승인 상태가 새어 나가지 않는가).
+async function anonymousDeviceStatus(app) {
+  const response = await fetch(new URL('/api/device', app), {
+    redirect: 'error', signal: AbortSignal.timeout(10000), headers: { Accept: 'application/json' },
+  });
+  let hasError = false;
+  try { hasError = typeof (await response.json())?.error === 'string'; } catch { /* 본문이 JSON이 아니면 거부로 인정하지 않습니다. */ }
+  const isJson = (response.headers.get('content-type') ?? '').includes('json');
+  const rejected = (response.status === 401 || response.status === 403) && isJson && hasError;
+  return { attackId: 'anonymous_device_status', expected: '로그인 없이 기기 승인 상태 읽기',
+    observed: rejected ? `로그인 없는 요청이 JSON 오류로 거부됨 (HTTP ${response.status})`
+      : `로그인 없는 요청이 JSON 오류로 거부되지 않음 (HTTP ${response.status})` };
+}
+
 // 5단계: 공개 키로 원본 자료 주소를 직접 불러도 메모가 나오지 않는가.
 // 공개 키는 배포가 공개한 /aleph.json에서 읽어 요청 헤더에만 쓰고, 키와 응답 본문은 기록하지 않습니다.
 async function directOriginalRead(config, app) {
@@ -124,7 +138,7 @@ async function directOriginalRead(config, app) {
 }
 
 export async function runAttackChecks(config) {
-  if (![1, 3, 4, 5, 6, 7, 8, 9, 10].includes(config.step)) {
+  if (![1, 3, 4, 5, 6, 7, 8, 9, 10, 11].includes(config.step)) {
     throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
   }
   const app = appOrigin(config);
@@ -137,5 +151,7 @@ export async function runAttackChecks(config) {
   if (config.step >= 4) results.push(await anonymousNoteItem(app));
   if (config.step >= 5) results.push(await directOriginalRead(config, app));
   if (config.step >= 10) results.push(await anonymousRestore(app));
+  // 승인된 기기에서의 정상 열림과 승인 전 거부(로그인 토큰·기기 쿠키 필요)는 이 점검에서 실행하지 않습니다(미실행).
+  if (config.step >= 11) results.push(await anonymousDeviceStatus(app));
   return results;
 }

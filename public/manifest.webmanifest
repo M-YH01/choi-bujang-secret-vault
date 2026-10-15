@@ -1,0 +1,16 @@
+{
+  "name": "BYTE BACK 자료실",
+  "short_name": "자료실",
+  "description": "승인된 기기에서만 열리는 나만의 자료실 접속 화면입니다. 설치했다는 표시만으로는 기기가 승인되지 않습니다.",
+  "lang": "ko",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#101a28",
+  "theme_color": "#101a28",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

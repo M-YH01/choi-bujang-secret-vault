@@ -3,7 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BYTE BACK | 점령된 자료실</title>
+  <title>BYTE BACK 자료실</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#101a28">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <style>
     :root { color-scheme: dark; font-family: system-ui, sans-serif; }
     body { margin: 0; min-height: 100vh; background: #101a28; color: #ecf4ff; }
@@ -31,15 +34,21 @@
     li strong { display: block; font-size: 18px; margin-bottom: 5px; }
     li span.body { color: #bfd0e5; white-space: pre-wrap; overflow-wrap: anywhere; }
     li .actions { margin-top: 12px; }
+    .offline { margin: 16px 0; padding: 12px 16px; border-radius: 12px; border: 1px solid #d0a95a; color: #fff1cf; background: #5a43142e; }
+    .small { font-size: 14px; color: #9db2cc; }
+    .code { font-family: ui-monospace, monospace; font-size: 22px; letter-spacing: .12em; color: #ecf4ff; }
     [hidden] { display: none !important; }
   </style>
 </head>
 <body>
   <main>
-    <div class="eyebrow">BYTE BACK · 3단계 로그인</div>
-    <h1>점령된 자료실</h1>
+    <div class="eyebrow">BYTE BACK · 11단계 나만의 접속 앱</div>
+    <h1>BYTE BACK 자료실</h1>
     <p>아래 기록은 모두 실습을 위해 만든 가상 자료입니다. 실제 개인정보는 넣지 마세요.</p>
-    <div class="notice">로그인한 사람만 메모를 볼 수 있습니다. 다만 아직 메모의 주인을 확인하지 않아서, 로그인한 다른 사람의 메모도 고치거나 지울 수 있는 허점이 남아 있습니다. 4단계에서 막습니다.</div>
+    <div class="notice">메모는 로그인하고, 서버가 이 기기를 승인된 기기로 확인한 뒤에만 보입니다. 앱으로 설치했다는 표시만으로는 기기 확인이 끝난 것이 아닙니다. 승인은 서버 쪽 운영자가 정합니다.</div>
+    <div id="offline" class="offline" role="status" hidden>인터넷에 연결되어 있지 않습니다. 보호된 메모는 이 기기에 저장해 두지 않으므로 오프라인에서는 볼 수 없습니다. 연결되면 다시 시도해 주세요.</div>
+    <p id="install-note" class="small">홈 화면에 설치할 수 있는 웹앱입니다. 설치는 화면을 앱처럼 여는 편의일 뿐, 기기 승인과는 별개입니다.
+      <button id="install" type="button" class="secondary" hidden>앱으로 설치</button></p>
     <div id="status" class="status" role="status" aria-live="polite">화면을 준비하는 중입니다.</div>
 
     <section id="login-panel" hidden>
@@ -53,6 +62,23 @@
         </label>
         <div><button id="login-submit" type="submit">로그인</button></div>
       </form>
+    </section>
+
+    <section id="device-panel" hidden>
+      <h2>기기 승인</h2>
+      <p id="device-text"></p>
+      <p id="device-code-line" class="small" hidden>요청 번호: <span id="device-code" class="code"></span></p>
+      <form id="device-form">
+        <label>기기 이름(선택, 40자까지)
+          <input id="device-label" type="text" maxlength="40" autocomplete="off">
+        </label>
+        <div class="actions">
+          <button id="device-request" type="submit">이 기기 승인 요청</button>
+          <button id="device-refresh" type="button" class="secondary">상태 새로고침</button>
+          <button id="device-logout" type="button" class="secondary">로그아웃</button>
+        </div>
+      </form>
+      <p class="small">요청 버튼은 승인을 "신청"만 합니다. 승인은 서버 쪽 운영자가 직접 하며, 승인되기 전에는 메모를 불러오지 않습니다.</p>
     </section>
 
     <section id="notes-panel" hidden>
@@ -83,6 +109,8 @@
     const loginPanel = $('#login-panel');
     const notesPanel = $('#notes-panel');
     const list = $('#notes');
+    const devicePanel = $('#device-panel');
+    let deviceState = 'unknown';
 
     let supabase = null;
     let session = null;
@@ -109,7 +137,10 @@
       const info = await response.json();
       const database = info?.database;
       if (!database?.url || !database?.publishableKey) throw new Error('공개 로그인 설정이 없습니다.');
-      return createClient(database.url, database.publishableKey);
+      // 로그인 토큰을 브라우저 저장소에 남기지 않고 메모리에만 둡니다(새로고침하면 다시 로그인).
+      return createClient(database.url, database.publishableKey, {
+        auth: { persistSession: false, autoRefreshToken: true, detectSessionInUrl: false },
+      });
     }
 
     async function api(path, options = {}) {
@@ -122,6 +153,7 @@
       if (!response.ok) {
         const failure = new Error(payload?.message || `요청이 실패했습니다 (HTTP ${response.status}).`);
         failure.status = response.status;
+        failure.code = payload?.error ?? null;
         throw failure;
       }
       return payload;
@@ -193,6 +225,16 @@
         showSignedOut();
         return;
       }
+      if (error.status === 403 && error.code === 'DEVICE_NOT_APPROVED') {
+        // 서버가 이 기기를 승인된 기기로 확인하지 못했습니다. 메모를 지우고 승인 화면으로 돌아갑니다.
+        showDevice('none');
+        setStatus('서버가 이 기기를 승인된 기기로 확인하지 못했습니다. 승인 요청 화면으로 돌아갑니다.', 'error');
+        return;
+      }
+      if (error.status === 503) {
+        setStatus('서버가 기기 승인을 확인하지 못해 자료를 열지 않았습니다. 잠시 뒤 다시 시도해 주세요.', 'error');
+        return;
+      }
       setStatus(error.message, 'error');
     }
 
@@ -211,17 +253,96 @@
 
     function showSignedOut() {
       shownUserId = null;
+      deviceState = 'unknown';
       loginPanel.hidden = false;
+      devicePanel.hidden = true;
       notesPanel.hidden = true;
       list.replaceChildren();
     }
 
+    const DEVICE_TEXT = {
+      none: '이 기기는 아직 승인 요청을 하지 않았습니다. 아래 버튼으로 승인을 요청하세요. 승인 전에는 메모가 보이지 않습니다.',
+      pending: '승인 요청이 접수되었습니다. 서버 쪽 운영자가 승인하면 열립니다. 요청 번호를 운영자에게 알려 주세요. 승인 전에는 메모가 보이지 않습니다.',
+      revoked: '이 기기의 승인이 취소되었습니다. 메모는 열리지 않습니다. 운영자에게 문의하세요.',
+    };
+
+    // 승인 전(none·pending·revoked)에는 보호 자료 영역을 비우고 숨깁니다.
+    function showDevice(state, code = null) {
+      deviceState = state;
+      loginPanel.hidden = true;
+      notesPanel.hidden = true;
+      list.replaceChildren();
+      devicePanel.hidden = false;
+      $('#device-text').textContent = DEVICE_TEXT[state] ?? DEVICE_TEXT.none;
+      $('#device-code-line').hidden = !code;
+      $('#device-code').textContent = code ?? '';
+      $('#device-request').hidden = state !== 'none';
+      $('#device-label').closest('label').hidden = state !== 'none';
+    }
+
+    // 서버가 (로그인한 사람, 이 기기)를 approved로 답했을 때만 기존 자료실을 엽니다.
+    // 화면의 상태값은 표시용일 뿐, 실제 차단은 메모 API가 서버에서 다시 확인합니다.
+    async function refreshDevice() {
+      if (!session) return;
+      try {
+        const info = await api('/api/device');
+        if (info?.state === 'approved' || info?.enforced === false) {
+          deviceState = 'approved';
+          devicePanel.hidden = true;
+          notesPanel.hidden = false;
+          $('#who').textContent = `로그인한 계정: ${session.user?.email ?? '(이메일 없음)'}`;
+          await loadNotes();
+          return;
+        }
+        showDevice(['pending', 'revoked'].includes(info?.state) ? info.state : 'none', info?.requestCode ?? null);
+        setStatus(info?.state === 'pending' ? '승인 대기 중입니다.' : '이 기기는 아직 승인되지 않았습니다.');
+      } catch (error) {
+        showDevice('none');
+        if (error.status === 401) { handleApiError(error); return; }
+        setStatus('기기 승인 상태를 확인하지 못해 자료를 열지 않았습니다. 잠시 뒤 다시 시도해 주세요.', 'error');
+      }
+    }
+
     function showSignedIn() {
       loginPanel.hidden = true;
-      notesPanel.hidden = false;
-      $('#who').textContent = `로그인한 계정: ${session.user?.email ?? '(이메일 없음)'}`;
-      loadNotes();
+      notesPanel.hidden = true;
+      refreshDevice();
     }
+
+    $('#device-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const button = $('#device-request');
+      button.disabled = true;
+      try {
+        const info = await api('/api/device', { method: 'POST', body: JSON.stringify({ label: $('#device-label').value }) });
+        // 요청 결과의 상태도 서버 답을 그대로 따릅니다. 승인 요청은 승인이 아닙니다.
+        if (info?.state === 'approved') await refreshDevice();
+        else { showDevice(info?.state ?? 'pending', info?.requestCode ?? null); setStatus('승인 요청을 보냈습니다. 승인 전에는 메모가 보이지 않습니다.', 'ok'); }
+      } catch (error) { handleApiError(error); }
+      button.disabled = false;
+    });
+    $('#device-refresh').addEventListener('click', refreshDevice);
+    $('#device-logout').addEventListener('click', () => $('#logout').click());
+
+    // 설치형 웹앱: 오프라인 안내, 설치 버튼, 서비스 워커(안내 화면만 보관, 보호 자료는 보관하지 않음)
+    const offlineBox = $('#offline');
+    const syncOnline = () => { offlineBox.hidden = navigator.onLine; };
+    window.addEventListener('online', syncOnline);
+    window.addEventListener('offline', syncOnline);
+    syncOnline();
+    let installPrompt = null;
+    window.addEventListener('beforeinstallprompt', (event) => {
+      event.preventDefault();
+      installPrompt = event;
+      $('#install').hidden = false;
+    });
+    $('#install').addEventListener('click', async () => {
+      if (!installPrompt) return;
+      installPrompt.prompt();
+      installPrompt = null;
+      $('#install').hidden = true;
+    });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 
     function render() {
       if (!session) { showSignedOut(); return; }

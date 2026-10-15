@@ -106,7 +106,7 @@ test('step 3 identity adds the login issuer and routes, tied to the same Supabas
   assert.throws(() => deploymentIdentity(env, { ...config3, identityProvider: null }));
   assert.throws(() => deploymentIdentity(env, { ...config3, allowedRoutes: [] }));
   assert.throws(() => deploymentIdentity(env, { ...config3, allowedRoutes: ['api/notes'] }));
-  assert.throws(() => deploymentIdentity(env, { ...config3, step: 11 }));
+  assert.throws(() => deploymentIdentity(env, { ...config3, step: 12 }));
   assert.equal(deploymentIdentity(env, { ...config3, step: 4 }).step, 4);
   assert.equal('originalApiUrl' in deploymentIdentity(env, { ...config3, step: 4 }), false);
   // 발급자가 다른 프로젝트를 가리키면 거부합니다.
@@ -262,5 +262,26 @@ test('step 10 identity publishes the restore route and rejects a missing or malf
   assert.throws(() => deploymentIdentity(env, { ...config10, restoreRoute: undefined }));
   for (const bad of ['api/restore/notes/:id', 'PUT-ish /x', '', 'https://example.com/api/restore', '/a b']) {
     assert.throws(() => deploymentIdentity(env, { ...config10, restoreRoute: bad }), bad);
+  }
+});
+
+test('step 11 attack check adds an anonymous GET to the device status route and sends no token', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  try {
+    globalThis.fetch = async (url, init = {}) => {
+      calls.push({ url: String(url), method: init.method ?? 'GET', headers: init.headers ?? {} });
+      if (String(url).endsWith('/data.json')) return new Response(JSON.stringify({ notes: [] }), { status: 200, headers: { 'content-type': 'application/json' } });
+      if (String(url).includes('/rest/v1/')) return new Response('[]', { status: 401, headers: { 'content-type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'UNAUTHORIZED' }), { status: 401, headers: { 'content-type': 'application/json' } });
+    };
+    const results = await runAttackChecks({ ...config5, step: 11 });
+    const device = results.find((r) => r.attackId === 'anonymous_device_status');
+    assert.match(device.observed, /JSON 오류로 거부됨 \(HTTP 401\)/u);
+    const call = calls.find((c) => c.url.endsWith('/api/device'));
+    assert.equal(call.method, 'GET');
+    assert.equal(JSON.stringify(call.headers).toLowerCase().includes('authorization'), false);
+  } finally {
+    globalThis.fetch = originalFetch;
   }
 });

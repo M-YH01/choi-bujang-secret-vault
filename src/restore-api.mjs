@@ -9,6 +9,7 @@
 // - 메모 제목·내용·토큰·키는 응답과 로그에 싣지 않습니다. 로그는 짧은 코드만 남깁니다.
 import { createHash } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
+import { defaultGate } from './device-approval.mjs';
 import { createAuthenticator, defaultVerify, fail, send, storeError, UUID } from './notes-api.mjs';
 
 const NOTES = 'study_notes';
@@ -54,8 +55,8 @@ export function createSupabaseRestoreStore(client) {
   };
 }
 
-export function createRestoreApi({ verify, getStore }) {
-  const authenticate = createAuthenticator(verify);
+export function createRestoreApi({ verify, getStore, gate = null }) {
+  const authenticate = createAuthenticator(verify, gate);
 
   async function restoreOne(request, response) {
     // 요청이 이 경로까지 왔는지 알 수 있게 짧은 코드만 남깁니다(요청 방식과 로그인 값이 있었는지 여부뿐, 값 자체는 기록하지 않음).
@@ -163,4 +164,4 @@ function defaultRestoreStore() {
   return createSupabaseRestoreStore(createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } }));
 }
 
-export const restoreApi = createRestoreApi({ verify: defaultVerify, getStore: defaultRestoreStore });
+export const restoreApi = createRestoreApi({ verify: defaultVerify, getStore: defaultRestoreStore, gate: defaultGate });
