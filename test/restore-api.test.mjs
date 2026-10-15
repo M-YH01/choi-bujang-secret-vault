@@ -97,7 +97,9 @@ test('B restores only the chosen note from the backup and nothing else changes',
   const aBefore = structuredClone(state.notes.get(NOTE_A));
   const res = await call(api, req('POST', { token: 'tokB', id: NOTE_B }));
   assert.equal(res.statusCode, 200);
-  assert.deepEqual(res.body, { id: NOTE_B, restored: true, contentSha256: contentSha256(original.title, original.content) });
+  const digest = contentSha256(original.title, original.content);
+  assert.deepEqual(res.body, { id: NOTE_B, restored: true, backupVerified: true, backupVersion: digest.slice(0, 12), contentSha256: digest, changes: res.body.changes });
+  assert.ok(res.body.changes.length > 0 && res.body.changes.every((name) => ['title', 'content', 'row_missing'].includes(name)), '바뀔 항목은 이름만 알립니다');
   const restored = state.notes.get(NOTE_B);
   assert.deepEqual([restored.id, restored.ownerId, restored.title, restored.content], [NOTE_B, B, original.title, original.content]);
   assert.equal(contentSha256(restored.title, restored.content), state.backup.get(NOTE_B).contentSha256);
@@ -118,7 +120,7 @@ test('a note that was deleted is put back, and one that already matches is left 
   assert.equal(state.notes.get(NOTE_B).ownerId, B);
   const auditCount = state.audit.length;
   const again = await call(api, req('POST', { token: 'tokB', id: NOTE_B }));
-  assert.deepEqual(again.body, { id: NOTE_B, restored: false, reason: 'already_matches', contentSha256: res.body.contentSha256 });
+  assert.deepEqual(again.body, { id: NOTE_B, restored: false, reason: 'already_matches', backupVerified: true, backupVersion: res.body.backupVersion, contentSha256: res.body.contentSha256, changes: [] });
   assert.equal(state.audit.length, auditCount, '바꾸지 않았으면 기록도 늘리지 않습니다');
 });
 
@@ -126,7 +128,7 @@ test('dryRun shows what would change without writing or auditing', async () => {
   const { api, state } = seed();
   const before = structuredClone([...state.notes]);
   const res = await call(api, req('POST', { token: 'tokB', id: NOTE_B, body: { dryRun: true } }));
-  assert.deepEqual(Object.keys(res.body).sort(), ['contentSha256', 'dryRun', 'id', 'replacesExisting', 'wouldRestore']);
+  assert.deepEqual(Object.keys(res.body).sort(), ['backupVerified', 'backupVersion', 'changes', 'contentSha256', 'dryRun', 'id', 'replacesExisting', 'wouldRestore']);
   assert.equal(res.body.dryRun, true);
   assert.equal(res.body.replacesExisting, true);
   assert.deepEqual([...state.notes], before);
@@ -172,7 +174,9 @@ test('a backup whose hash no longer matches is refused and recorded', async () =
   }
   // dryRun도 같은 검사를 거치지만 기록은 남기지 않습니다.
   const count = state.audit.length;
-  assert.equal((await call(api, req('POST', { token: 'tokB', id: NOTE_B, body: { dryRun: true } }))).statusCode, 422);
+const dry = await call(api, req('POST', { token: 'tokB', id: NOTE_B, body: { dryRun: true } }));
+  assert.equal(dry.statusCode, 422);
+  assert.equal(dry.body.backupVerified, false);
   assert.equal(state.audit.length, count);
 });
 

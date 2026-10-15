@@ -95,7 +95,7 @@ export function createRestoreApi({ verify, getStore }) {
       if (typeof backup.contentSha256 !== 'string' || digest !== backup.contentSha256) {
         console.warn('restore_denied', 'backup_hash_mismatch');
         if (!dryRun) await record('restore_note', digest, 'rejected_backup_hash').catch(() => console.error('audit_write_failed'));
-        return fail(response, 422, 'BACKUP_INVALID', '사본의 내용 해시가 맞지 않아 복원하지 않았습니다.');
+        return send(response, 422, { error: 'BACKUP_INVALID', message: '사본의 내용 해시가 맞지 않아 복원하지 않았습니다.', backupVerified: false });
       }
       // 3) 현재 상태 확인. 다른 사람의 행을 덮어쓰지 않고, 이미 같으면 아무것도 하지 않습니다.
       const current = await store.getCurrent(id);
@@ -103,11 +103,15 @@ export function createRestoreApi({ verify, getStore }) {
         console.warn('restore_denied', 'current_owner_differs');
         return fail(response, 409, 'CONFLICT', '현재 메모의 소유자가 사본과 달라 복원하지 않았습니다.');
       }
+      // 사본 검증 결과와 "바뀔 항목"(이름만, 내용 없음)을 응답에 함께 알립니다.
+      const proof = { backupVerified: true, backupVersion: digest.slice(0, 12), contentSha256: digest };
+      const changes = !current ? ['row_missing']
+        : [current.title !== backup.title && 'title', current.content !== backup.content && 'content'].filter(Boolean);
       if (current && contentSha256(current.title, current.content) === digest) {
-        return send(response, 200, { id, restored: false, reason: 'already_matches', contentSha256: digest });
+        return send(response, 200, { id, restored: false, reason: 'already_matches', ...proof, changes: [] });
       }
       if (dryRun) {
-        return send(response, 200, { id, dryRun: true, wouldRestore: true, replacesExisting: Boolean(current), contentSha256: digest });
+        return send(response, 200, { id, dryRun: true, wouldRestore: true, replacesExisting: Boolean(current), ...proof, changes });
       }
       // 4) 시작 기록 → 그 한 건만 되돌리기 → 다시 읽어 해시 확인 → 결과 기록. 시작 기록이 안 되면 아무것도 바꾸지 않습니다.
       await record('restore_note', digest, 'started');
@@ -123,7 +127,7 @@ export function createRestoreApi({ verify, getStore }) {
         throw error;
       }
       await record('restore_note', digest, 'restored').catch(() => console.error('audit_write_failed'));
-      return send(response, 200, { id, restored: true, contentSha256: digest });
+      return send(response, 200, { id, restored: true, ...proof, changes });
     } catch (error) {
       console.error('restore_failed', error?.upstreamCode ?? 'unavailable');
       return fail(response, 502, 'UNAVAILABLE', '복원하지 못했습니다. 잠시 뒤 다시 시도하세요.');
