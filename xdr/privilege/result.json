@@ -1,0 +1,167 @@
+{
+  "schema": "aleph.xdr.result.v1",
+  "moduleKey": "privilege",
+  "decisions": [
+    {
+      "alertId": "pv-01",
+      "action": "block",
+      "confidence": 0.98,
+      "reason": "admin_group_added_unusually (T1078): 권한 상승 신호가 여러 개 겹쳐 세션을 거둘 후보입니다"
+    },
+    {
+      "alertId": "pv-02",
+      "action": "block",
+      "confidence": 0.98,
+      "reason": "fresh_admin_runs_privileged_command (T1068): 권한 상승 신호가 여러 개 겹쳐 세션을 거둘 후보입니다"
+    },
+    {
+      "alertId": "pv-03",
+      "action": "block",
+      "confidence": 0.98,
+      "reason": "fresh_admin_runs_privileged_command (T1068): 권한 상승 신호가 여러 개 겹쳐 세션을 거둘 후보입니다"
+    },
+    {
+      "alertId": "pv-04",
+      "action": "block",
+      "confidence": 0.98,
+      "reason": "fresh_admin_runs_privileged_command (T1068): 권한 상승 신호가 여러 개 겹쳐 세션을 거둘 후보입니다"
+    },
+    {
+      "alertId": "pv-05",
+      "action": "block",
+      "confidence": 0.98,
+      "reason": "admin_group_added_unusually (T1078): 권한 상승 신호가 여러 개 겹쳐 세션을 거둘 후보입니다"
+    },
+    {
+      "alertId": "pv-06",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "session_elevated_or_impersonated (T1068): 권한 상승 신호가 여러 개 겹쳐 세션을 거둘 후보입니다"
+    },
+    {
+      "alertId": "pv-07",
+      "action": "block",
+      "confidence": 0.98,
+      "reason": "fresh_admin_runs_privileged_command (T1068): 권한 상승 신호가 여러 개 겹쳐 세션을 거둘 후보입니다"
+    },
+    {
+      "alertId": "pv-08",
+      "action": "block",
+      "confidence": 0.98,
+      "reason": "session_elevated_or_impersonated (T1068): 권한 상승 신호가 여러 개 겹쳐 세션을 거둘 후보입니다"
+    },
+    {
+      "alertId": "pv-09",
+      "action": "block",
+      "confidence": 0.98,
+      "reason": "admin_group_added_unusually (T1078): 권한 상승 신호가 여러 개 겹쳐 세션을 거둘 후보입니다"
+    },
+    {
+      "alertId": "pv-10",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "privilege_signal_below_threshold (T1078): 권한 상승 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "pv-11",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "privilege_signal_below_threshold (T1078): 권한 상승 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "pv-12",
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "privilege_signal_below_threshold (T1078): 권한 상승 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "pv-13",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "privilege_signal_below_threshold (T1078): 권한 상승 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "pv-14",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "privilege_signal_below_threshold (T1078): 권한 상승 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "pv-15",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "privilege_signal_below_threshold (T1078): 권한 상승 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "pv-16",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "privilege_signal_below_threshold (T1078): 권한 상승 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "pv-17",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "privilege_signal_below_threshold (T1078): 권한 상승 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "pv-18",
+      "action": "record",
+      "confidence": 0.13,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    },
+    {
+      "alertId": "pv-19",
+      "action": "record",
+      "confidence": 0.13,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    },
+    {
+      "alertId": "pv-20",
+      "action": "record",
+      "confidence": 0.12,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    },
+    {
+      "alertId": "pv-21",
+      "action": "record",
+      "confidence": 0.13,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    },
+    {
+      "alertId": "pv-22",
+      "action": "record",
+      "confidence": 0.13,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    },
+    {
+      "alertId": "pv-23",
+      "action": "record",
+      "confidence": 0.12,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    },
+    {
+      "alertId": "pv-24",
+      "action": "record",
+      "confidence": 0.13,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    },
+    {
+      "alertId": "pv-25",
+      "action": "record",
+      "confidence": 0.13,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    },
+    {
+      "alertId": "pv-26",
+      "action": "record",
+      "confidence": 0.12,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    }
+  ],
+  "counts": {
+    "block": 9,
+    "alert": 8,
+    "record": 9
+  }
+}

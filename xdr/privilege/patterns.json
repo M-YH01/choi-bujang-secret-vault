@@ -1,0 +1,38 @@
+{
+  "schema": "aleph.xdr.patterns.v1",
+  "moduleKey": "privilege",
+  "source": "MITRE ATT&CK T1078 Valid Accounts (정상 계정 도용), T1068 Exploitation for Privilege Escalation (권한 상승 악용)",
+  "note": "아래 점수 기준은 MITRE가 정한 값이 아니라 이 실습 경보에 맞춰 학생이 정한 시험용 기준입니다. 이 모듈은 경보에 적힌 계정·그룹·명령 변화로 판단하며, 실제 취약점 악용 여부를 확인하지는 않습니다.",
+  "patterns": [
+    {
+      "name": "admin_group_added_unusually",
+      "technique": "T1078",
+      "when": { "signal": "관리자 그룹 추가가 원격 주소·여러 계정·빠졌다 다시 들어옴과 함께 나타남" },
+      "evidence": "T1078: 공격자는 훔친 평범한 계정을 관리자 그룹에 넣어 권한을 얻으므로, 평소와 다른 관리자 그룹 추가는 정상 계정 도용 뒤의 권한 확보 형태입니다."
+    },
+    {
+      "name": "fresh_admin_runs_privileged_command",
+      "technique": "T1068",
+      "when": { "signal": "방금 관리자가 된 계정이나 관리자 그룹 추가 직후 관리자 명령 실행" },
+      "evidence": "T1068: 권한이 높아진 직후 바로 관리자 명령을 실행하는 것은, 올린 권한을 곧바로 쓰는 권한 상승 악용의 결과 형태입니다."
+    },
+    {
+      "name": "session_elevated_or_impersonated",
+      "technique": "T1068",
+      "when": { "signal": "세션이 관리자 권한으로 바뀜 또는 다른 계정의 권한으로 명령 실행" },
+      "evidence": "T1068/T1078: 세션의 권한이 갑자기 바뀌거나 다른 계정의 권한으로 명령이 실행되는 것은, 권한을 가로채 쓰는 형태입니다."
+    },
+    {
+      "name": "privilege_use_off_hours_or_new_source",
+      "technique": "T1078",
+      "when": { "signal": "수업 시간 밖이거나 처음 보는 주소에서 관리자 권한 사용" },
+      "evidence": "T1078: 도용한 정상 계정은 평소와 다른 시각·주소에서 쓰이는 경우가 많아, 업무 시간 밖이나 처음 보는 주소의 권한 사용은 도용의 신호입니다."
+    },
+    {
+      "name": "privilege_signal_below_threshold",
+      "technique": "T1078",
+      "when": { "needsTag": true, "minLevel": 4, "maxPoints": 1 },
+      "evidence": "T1078/T1068 표시는 있으나 관리자 그룹 추가·관리자 명령 같은 뚜렷한 권한 상승 신호가 하나뿐이거나 없어(취소·실패·변경 없음 포함), 정상 수업 작업과 구별되지 않으므로 알림으로만 남깁니다."
+    }
+  ]
+}

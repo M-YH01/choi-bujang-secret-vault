@@ -470,3 +470,12 @@
 - `xdr/persistence/respond.mjs`: block만 만료 시간·경보 번호가 있는 격리용 거부 규칙으로 바꿔 `xdr/deny-rules.json`에 넣고, 알림은 `xdr/alerts.log`에 한 줄씩 쌓습니다(두 파일은 Git에 올리지 않음).
 - 다시 실행: `npm run xdr:run -- persistence` → `xdr/persistence/result.json` (block 8 · alert 8 · record 8, 정상 사건 차단 0).
 - 한계: 격리 규칙 파일은 아직 `src/decider.mjs`에 연결하지 않았고 판정기 규칙은 고치지 않았습니다. 파일 무결성 경보 원본을 직접 읽거나 PC에서 항목을 지우지는 않습니다. 이 결과는 내 PC 연습 실행이며 심판 판정이 아닙니다.
+
+## 보너스 xdr-05: 권한 가로채기 판정 (연습)
+
+- `xdr/privilege/read-alerts.mjs`: 가상 경보(`xdr/fixtures/privilege.json`)에서 시각·출발 주소·계정·수준·설명만 뽑습니다(확인용, decide.mjs가 불러오지 않음).
+- `xdr/privilege/patterns.json`: MITRE ATT&CK T1078·T1068 근거가 있는 패턴 5개(관리자 그룹 추가, 관리자가 된 직후 명령, 세션 권한 변경·남의 권한 사용, 시각·주소 이상, 뚜렷하지 않은 신호). 점수 기준은 제가 연습용으로 정한 값이고, 경보에 적힌 계정·그룹·명령 변화만 보며 실제 취약점 악용 여부는 확인하지 않습니다.
+- `xdr/privilege/decide.mjs`: 가져오기(import) 없는 순수 함수. 권한을 올리거나 쓴 핵심 신호가 있고 점수가 4점 이상(확신도 0.9)일 때만 block입니다. 취소·실패·읽기·변경 없음 문장은 신호로 세지 않고, 시각·주소 같은 보조 신호만으로는 막지 않으며, "평소 주소"는 점수를 깎습니다.
+- `xdr/privilege/respond.mjs`: block만 만료 시간·경보 번호가 있는 거부 규칙으로 바꿔 `xdr/deny-rules.json`에 넣고, 알림은 `xdr/alerts.log`에 한 줄씩 쌓습니다(두 파일은 Git에 올리지 않음). 같은 계정(user01 등)이 다른 주소에서는 정상 활동을 하므로 계정이 아니라 출발 주소 기준으로 규칙을 만듭니다.
+- 다시 실행: `npm run xdr:run -- privilege` → `xdr/privilege/result.json` (block 9 · alert 8 · record 9, 정상 사건 차단 0).
+- 한계: 거부 규칙 파일은 아직 `src/decider.mjs`에 연결하지 않았고 판정기 규칙은 고치지 않았습니다. 계정 세션을 실제로 거두는 일은 하지 않습니다. 이 결과는 내 PC 연습 실행이며 심판 판정이 아닙니다.
