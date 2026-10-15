@@ -286,7 +286,7 @@
       if (!session) return;
       try {
         const info = await api('/api/device');
-        if (info?.state === 'approved' || info?.enforced === false) {
+        if (info?.state === 'approved') {
           deviceState = 'approved';
           devicePanel.hidden = true;
           notesPanel.hidden = false;

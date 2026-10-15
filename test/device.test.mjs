@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { test } from 'node:test';
 import { createClient } from '@supabase/supabase-js';
 import {
-  COOKIE_NAME, cleanLabel, createDeviceGate, createSupabaseDeviceStore, deviceCookie, gateEnforced, hashDevice, newDeviceId,
+  COOKIE_NAME, cleanLabel, createDeviceGate, createSupabaseDeviceStore, deviceCookie, hashDevice, newDeviceId,
   readDeviceId, requestCode,
 } from '../src/device-approval.mjs';
 import { createDeviceApi } from '../src/device-api.mjs';
@@ -169,7 +169,7 @@ test('too many pending requests are refused and store failures never grant anyth
 
 test('the gate opens only for an approved device and fails closed on every other state or error', async () => {
   const store = memoryStore();
-  const gate = createDeviceGate({ getStore: () => store, enforced: () => true });
+  const gate = createDeviceGate({ getStore: () => store });
   const id = newDeviceId();
   const cookie = `${COOKIE_NAME}=${id}`;
   const identity = { userId: A };
@@ -184,19 +184,26 @@ test('the gate opens only for an approved device and fails closed on every other
   store.rows[0].status = 'approved';
   assert.deepEqual(await gate(req('GET', { cookie }), identity), { allowed: true, state: 'approved' });
   assert.equal((await gate(req('GET', { cookie }), { userId: B })).allowed, false, '다른 사용자는 같은 쿠키로도 열 수 없습니다');
-  const failing = createDeviceGate({ getStore: () => memoryStore({ fail: { find: true } }), enforced: () => true });
+  const failing = createDeviceGate({ getStore: () => memoryStore({ fail: { find: true } }) });
   await assert.rejects(failing(req('GET', { cookie }), identity));
 });
 
-test('only DEVICE_GATE=off disables the check', () => {
-  assert.equal(gateEnforced({}), true);
-  for (const value of ['on', 'OFF', 'false', '0', '', 'no', ' off']) assert.equal(gateEnforced({ DEVICE_GATE: value }), true, value);
-  assert.equal(gateEnforced({ DEVICE_GATE: 'off' }), false);
+test('there is no switch that turns the device check off', async () => {
+  const source = await readFileStatic(`${rootDir}src/device-approval.mjs`, 'utf8');
+  const apiSource = await readFileStatic(`${rootDir}src/device-api.mjs`, 'utf8');
+  const page = await readFileStatic(`${rootDir}public/index.html`, 'utf8');
+  for (const text of [source, apiSource, page]) assert.equal(/DEVICE_GATE|gateEnforced|not_enforced|enforced/u.test(text), false);
+  const saved = process.env.DEVICE_GATE;
+  process.env.DEVICE_GATE = 'off';
+  try {
+    const gate = createDeviceGate({ getStore: () => memoryStore() });
+    assert.equal((await gate(req('GET', {}), { userId: A })).allowed, false);
+  } finally { if (saved === undefined) delete process.env.DEVICE_GATE; else process.env.DEVICE_GATE = saved; }
 });
 
 function notesWithGate(store) {
   const notes = { async list() { return []; }, async ownerOf() { return null; } };
-  return createNotesApi({ verify, getStore: () => notes, gate: createDeviceGate({ getStore: () => store, enforced: () => true }) });
+  return createNotesApi({ verify, getStore: () => notes, gate: createDeviceGate({ getStore: () => store }) });
 }
 
 test('the notes API stays closed with 403 until the device is approved, then behaves as before', async () => {
@@ -239,7 +246,7 @@ test('the notes API stays closed with 403 until the device is approved, then beh
 
 test('the single-note and restore routes use the same gate', async () => {
   const store = memoryStore();
-  const gate = createDeviceGate({ getStore: () => store, enforced: () => true });
+  const gate = createDeviceGate({ getStore: () => store });
   const notes = createNotesApi({ verify, getStore: () => ({ async ownerOf() { return null; } }), gate });
   const restore = createRestoreApi({ verify, getStore: () => { throw new Error('must not be reached'); }, gate });
   await quiet(async () => {

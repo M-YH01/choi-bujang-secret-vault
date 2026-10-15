@@ -50,11 +50,6 @@ export function cleanLabel(value) {
 // "열어 줄 것인가"는 정확히 approved일 때만 true입니다.
 export const isApproved = (state) => state === 'approved';
 
-export function gateEnforced(env = process.env) {
-  // 비상용: 운영자가 Vercel 환경변수 DEVICE_GATE=off 로 둘 때만 검사를 끕니다. 그 밖의 값은 모두 검사합니다.
-  return env?.DEVICE_GATE !== 'off';
-}
-
 const upstream = (error) => Object.assign(new Error('device_store_failed'), { code: 'UNAVAILABLE', upstreamCode: error?.code ?? null });
 
 export function createSupabaseDeviceStore(client) {
@@ -97,9 +92,9 @@ export async function deviceState(store, userId, request) {
 }
 
 // 메모 API가 로그인 확인 직후에 부르는 문입니다. { allowed, state }를 돌려주고, 오류는 그대로 던집니다.
-export function createDeviceGate({ getStore = defaultDeviceStore, enforced = gateEnforced } = {}) {
+// 끄는 스위치는 없습니다. 환경변수나 인자로 검사를 건너뛸 수 없습니다.
+export function createDeviceGate({ getStore = defaultDeviceStore } = {}) {
   return async function gate(request, identity) {
-    if (!enforced()) return { allowed: true, state: 'not_enforced' };
     const { state } = await deviceState(getStore(), identity.userId, request);
     return { allowed: isApproved(state), state };
   };

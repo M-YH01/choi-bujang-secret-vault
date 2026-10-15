@@ -5,17 +5,16 @@
 // 서버 키에는 status를 쓰거나 바꿀 권한이 없습니다. 본문의 status·approved·userId·deviceId는 읽지 않습니다.
 import { createAuthenticator, fail, send } from './notes-api.mjs';
 import {
-  MAX_PENDING_PER_USER, cleanLabel, defaultDeviceStore, deviceCookie, deviceState, gateEnforced, hashDevice, newDeviceId,
+  MAX_PENDING_PER_USER, cleanLabel, defaultDeviceStore, deviceCookie, deviceState, hashDevice, newDeviceId,
   readDeviceId, requestCode,
 } from './device-approval.mjs';
 import { defaultVerify } from './notes-api.mjs';
 
-export function createDeviceApi({ verify, getStore, enforced = gateEnforced }) {
+export function createDeviceApi({ verify, getStore }) {
   const authenticate = createAuthenticator(verify); // 이 경로는 기기 승인 전에도 부를 수 있어야 하므로 문을 달지 않습니다.
 
   const view = ({ state, row }) => ({
     state,
-    enforced: enforced(),
     ...(state === 'pending' && row ? { requestCode: requestCode(row.id) } : {}),
   });
 
