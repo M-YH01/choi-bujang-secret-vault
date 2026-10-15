@@ -362,25 +362,13 @@ test('requests rejected before the copy check leave only a short code in the log
   assert.equal(lines.join(' ').includes('tokB') || lines.join(' ').includes('bad '), false);
 });
 
-test('the unmatched-api function logs only method and path, answers a JSON 404 and is wired as a fallback rewrite', async () => {
-  const { unmatchedApi } = await import('../api/unmatched/index.js');
-  const originalWarn = console.warn;
-  const lines = [];
-  console.warn = (...parts) => lines.push(parts.join(' '));
-  const res = { headers: {}, setHeader(k, v) { this.headers[k] = v; }, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; } };
-  try {
-    unmatchedApi({ method: 'POST', url: '/api/unmatched?p=restore%2Fx&token=SECRET', query: { p: 'restore/x', token: 'SECRET' }, headers: { authorization: 'Bearer SECRET' }, body: { content: '메모' } }, res);
-    unmatchedApi({ method: 'GET', query: { p: ['a', 'b c<script>'] } }, res);
-    unmatchedApi({ method: 'GET', query: {} }, res);
-  } finally {
-    console.warn = originalWarn;
-  }
-  assert.equal(res.statusCode, 404);
-  assert.equal(res.body.error, 'NOT_FOUND');
-  assert.deepEqual(lines, ['unmatched_api POST /api/restore/x', 'unmatched_api GET /api/a/b?c?script?', 'unmatched_api GET /api/']);
-  assert.equal(lines.join(' ').includes('SECRET'), false);
+test('vercel.json has no catch-all /api rewrite that could shadow the [id] routes, and the [id] route files exist', async () => {
   const vercel = JSON.parse(await readFile(resolve(root, 'vercel.json'), 'utf8'));
-  assert.deepEqual(vercel.rewrites, [{ source: '/api/:path*', destination: '/api/unmatched?p=:path*' }]);
+  // 배포에서 /api/notes/:id 와 /api/restore/notes/:id 가 로그인 확인 없이 404로 가로채인 적이 있습니다(실측 표 4·10단계 줄).
+  assert.equal((vercel.rewrites ?? []).some((rule) => String(rule.source).startsWith('/api')), false);
+  for (const file of ['api/notes/[id].js', 'api/restore/notes/[id].js']) {
+    assert.match(await readFile(resolve(root, file), 'utf8'), /export default/u, file);
+  }
 });
 
 test('after the write the re-read row must match the copy on id, owner and content hash separately', async () => {

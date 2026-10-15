@@ -43,11 +43,5 @@
         }
       ]
     }
-  ],
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "/api/unmatched?p=:path*"
-    }
   ]
 }
