@@ -443,3 +443,12 @@
 - `xdr/brute-force/respond.mjs`: block만 만료 시간·경보 번호가 있는 차단 규칙(`xdr/deny-rules.json`)으로 바꾸고, 경보는 `xdr/alerts.log`에 한 줄씩 남깁니다. 두 파일은 실행 때 생기며 Git에는 올리지 않습니다.
 - 다시 실행: `npm run xdr:run -- brute-force` → `xdr/brute-force/result.json` (block 10 · alert 9 · record 9, 정상 사건 차단 0).
 - 한계: 차단 규칙 파일은 아직 `src/decider.mjs`에 연결하지 않았습니다. 이 결과는 내 PC 연습 실행이며 심판 판정이 아닙니다.
+
+## 보너스 xdr-02: 웹 주입 공격 판정 (연습)
+
+- `xdr/web-injection/read-alerts.mjs`: 가상 경보(`xdr/fixtures/web-injection.json`)에서 시각·출발 주소·계정·수준·설명만 뽑습니다(확인용, decide.mjs가 불러오지 않음).
+- `xdr/web-injection/patterns.json`: MITRE ATT&CK T1190 근거가 있는 패턴 5개(SQL·스크립트·경로 거슬러 올라가기·명령 구분자 반복, 반복 미만 단일 표식). 숫자 기준은 제가 연습용으로 정한 값입니다.
+- `xdr/web-injection/decide.mjs`: 가져오기(import) 없는 순수 함수. 0.85 이상 block, 0.5 이상 alert, 그 아래 record.
+- `xdr/web-injection/respond.mjs`: block만 만료 시간·경보 번호가 있는 차단 규칙으로 바꿔 `xdr/deny-rules.json`에 넣고, 알림은 `xdr/alerts.log`에 한 줄씩 쌓습니다(두 파일은 Git에 올리지 않음).
+- 다시 실행: `npm run xdr:run -- web-injection` → `xdr/web-injection/result.json` (block 8 · alert 9 · record 9, 정상 사건 차단 0).
+- 한계: 차단 규칙 파일은 아직 `src/decider.mjs`에 연결하지 않았고 판정기 규칙은 고치지 않았습니다. 이 결과는 내 PC 연습 실행이며 심판 판정이 아닙니다.

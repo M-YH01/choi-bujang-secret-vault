@@ -1,0 +1,38 @@
+{
+  "schema": "aleph.xdr.patterns.v1",
+  "moduleKey": "web-injection",
+  "source": "MITRE ATT&CK T1190 Exploit Public-Facing Application (외부에 공개된 앱의 약점을 악용해 처음 들어오는 기술)",
+  "note": "아래 숫자 기준은 MITRE가 정한 값이 아니라, 이 실습 경보의 규칙 수준·반복 횟수 분포에 맞춰 학생이 정한 시험용 기준입니다.",
+  "patterns": [
+    {
+      "name": "sql_injection_repeated",
+      "technique": "T1190",
+      "when": { "signal": "sql", "minRepeats": 8 },
+      "evidence": "T1190: 요청 인자에 SQL 구문을 이어 붙여 공개 앱의 데이터베이스 조회를 바꾸려는 SQL 주입이, 같은 주소에서 반복되는 형태입니다."
+    },
+    {
+      "name": "script_injection_repeated",
+      "technique": "T1190",
+      "when": { "signal": "script", "minRepeats": 8 },
+      "evidence": "T1190: 요청 인자에 스크립트 태그를 넣어 공개 앱이 그대로 되돌려 보내게 하려는 스크립트 삽입이, 같은 주소에서 반복되는 형태입니다."
+    },
+    {
+      "name": "path_traversal_repeated",
+      "technique": "T1190",
+      "when": { "signal": "path", "minRepeats": 8 },
+      "evidence": "T1190: 경로 인자에 ../ 를 여러 단계 이어 붙여 공개 앱이 허용하지 않은 위치를 열어 보려는 경로 거슬러 올라가기가 반복되는 형태입니다."
+    },
+    {
+      "name": "command_separator_repeated",
+      "technique": "T1190",
+      "when": { "signal": "command", "minRepeats": 8 },
+      "evidence": "T1190: 요청 인자에 명령 구분자를 끼워 공개 앱이 다른 명령까지 실행하게 하려는 시도가, 연속 요청에서 반복되는 형태입니다."
+    },
+    {
+      "name": "single_marker_below_repeat",
+      "technique": "T1190",
+      "when": { "minRepeats": 1, "maxRepeats": 7, "needsT1190Tag": true },
+      "evidence": "T1190 표시가 붙었지만 반복이 기준 미만이라, 정상 입력(수업 단어·따옴표)과 구별되지 않아 막지 않고 알림으로만 남기는 낮은 확신도 구간입니다."
+    }
+  ]
+}
