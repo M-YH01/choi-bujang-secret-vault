@@ -292,7 +292,7 @@ test('the backup SQL, route file and config describe the same feature', async ()
   assert.equal(/@|sb_secret|eyJ|insert into public\.study_notes_backup[^;]*values/iu.test(sql), false, 'SQL에 이메일·키·메모 문장을 넣지 않습니다');
   await access(resolve(root, 'api/restore/notes/[id].js'));
   assert.equal(config.restoreRoute, 'POST /api/restore/notes/:id');
-  assert.equal(config.allowedRoutes.includes(config.restoreRoute), false);
+  assert.equal(config.allowedRoutes.includes(config.restoreRoute), true, '허용 경로 목록에도 복구 경로를 적습니다');
   const route = await readFile(resolve(root, 'api/restore/notes/[id].js'), 'utf8');
   assert.ok(route.includes('restoreApi.restoreOne'));
 });

@@ -1,7 +1,7 @@
 {
   "schema": "aleph.policy-snapshot.v1",
-  "version": "80698040c1f8",
-  "digest": "80698040c1f85f7d69fa7a70832de4d52da6848fd82e013aaebeb4c7ba7088df",
+  "version": "0cae4bacc169",
+  "digest": "0cae4bacc169c08d12672150043d46d6e1f1060a58bac14efb0fd03784e3418f",
   "policy": {
     "ruleIds": [
       "device_registered",
@@ -11,7 +11,8 @@
     "allowedRoutes": [
       "GET /api/notes/:id",
       "PUT /api/notes/:id",
-      "DELETE /api/notes/:id"
+      "DELETE /api/notes/:id",
+      "POST /api/restore/notes/:id"
     ],
     "files": {
       "src/decider.mjs": "259b73ad863e3efc268a55852e513136388af8c9b7ca1f21ce77439ee26c043f",

@@ -12,7 +12,8 @@
   "allowedRoutes": [
     "GET /api/notes/:id",
     "PUT /api/notes/:id",
-    "DELETE /api/notes/:id"
+    "DELETE /api/notes/:id",
+    "POST /api/restore/notes/:id"
   ],
   "originalApiUrl": "https://eftdemcplusaetgvsttq.supabase.co/rest/v1/study_notes",
   "restoreRoute": "POST /api/restore/notes/:id"

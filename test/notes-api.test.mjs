@@ -303,7 +303,7 @@ test('aleph.config.json is ready for step 10 and the login helper accepts it', a
   assert.deepEqual(Object.keys(config.identityProvider).sort(), ['audience', 'issuer', 'jwksUrl']);
   assert.equal(config.identityProvider.jwksUrl, `${config.identityProvider.issuer}/.well-known/jwks.json`);
   assert.ok(config.identityProvider.issuer.endsWith('.supabase.co/auth/v1'));
-  assert.deepEqual([...config.allowedRoutes].sort(), ['DELETE /api/notes/:id', 'GET /api/notes/:id', 'PUT /api/notes/:id']);
+  assert.deepEqual([...config.allowedRoutes].sort(), ['DELETE /api/notes/:id', 'GET /api/notes/:id', 'POST /api/restore/notes/:id', 'PUT /api/notes/:id']);
   // 도우미가 설정을 받아들이는지만 봅니다(가짜 서버 키, 네트워크 요청 없음).
   const verifyLogin = createLoginVerifier({ config, supabaseSecretKey: FAKE_KEY });
   assert.equal(await verifyLogin(undefined), null);
