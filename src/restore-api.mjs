@@ -134,7 +134,9 @@ export function createRestoreApi({ verify, getStore }) {
         const row = { id, ownerId: userId, title: backup.title, content: backup.content };
         if (current) await store.updateOne(row); else await store.insertOne(row);
         const after = await store.getCurrent(id);
-        if (!after || after.ownerId !== userId || contentSha256(after.title, after.content) !== digest) {
+        // 복원 뒤 다시 읽은 행의 ID·소유자·내용 해시를 사본의 값과 각각 대조합니다. 하나라도 다르면 실패로 기록합니다.
+        if (!after || after.id !== backup.id || after.ownerId !== backup.ownerId
+          || contentSha256(after.title, after.content) !== backup.contentSha256) {
           throw storeError({ code: 'verify_failed' });
         }
       } catch (error) {

@@ -382,3 +382,26 @@ test('the unmatched-api function logs only method and path, answers a JSON 404 a
   const vercel = JSON.parse(await readFile(resolve(root, 'vercel.json'), 'utf8'));
   assert.deepEqual(vercel.rewrites, [{ source: '/api/:path*', destination: '/api/unmatched?p=:path*' }]);
 });
+
+test('after the write the re-read row must match the copy on id, owner and content hash separately', async () => {
+  for (const [label, tamper] of [
+    ['id', (row) => ({ ...row, id: MISSING })],
+    ['owner', (row) => ({ ...row, ownerId: A })],
+    ['hash', (row) => ({ ...row, content: row.content + '!' })],
+  ]) {
+    const m = seed();
+    let writes = 0;
+    const store = { ...m.store,
+      async updateOne(row) { await m.store.updateOne(row); writes += 1; },
+      async getCurrent(id) {
+        const row = await m.store.getCurrent(id);
+        return writes > 0 && row ? tamper(row) : row;
+      } };
+    const api = createRestoreApi({ verify, getStore: () => store });
+    await quiet(async () => {
+      const res = await call(api, req('POST', { token: 'tokB', id: NOTE_B }));
+      assert.equal(res.statusCode, 502, label);
+    });
+    assert.deepEqual(m.state.audit.map((e) => e.result), ['started', 'failed'], label);
+  }
+});
