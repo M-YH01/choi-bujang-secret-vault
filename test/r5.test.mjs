@@ -336,3 +336,23 @@ test('with no network the attack checks do not stop the bundle: every unsent req
     globalThis.fetch = originalFetch;
   }
 });
+
+test('the direct original read puts its query in the URL text and sends the public key only in a header', async () => {
+  const originalFetch = globalThis.fetch;
+  const seen = [];
+  globalThis.fetch = async (url, init = {}) => {
+    seen.push({ url: String(url), headers: init.headers ?? {} });
+    if (String(url).endsWith('/aleph.json')) return new Response(JSON.stringify({ database: { publishableKey: 'pub-key-for-test' } }), { status: 200, headers: { 'content-type': 'application/json' } });
+    return new Response('[]', { status: 401, headers: { 'content-type': 'application/json' } });
+  };
+  try {
+    const results = await runAttackChecks({ ...config5, step: 5 });
+    const call = seen.find((c) => c.url.includes('/rest/v1/'));
+    assert.ok(call.url.endsWith('?select=id&limit=1'), call.url);
+    assert.equal(call.url.includes('pub-key-for-test'), false);
+    assert.equal(call.headers.apikey, 'pub-key-for-test');
+    assert.match(results.find((r) => r.attackId === 'direct_original_read').observed, /거부됨 \(HTTP 401\)/u);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

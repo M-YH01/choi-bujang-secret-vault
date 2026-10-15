@@ -160,9 +160,8 @@ async function directOriginalRead(config, app) {
   if (typeof key !== 'string' || !key) {
     return { attackId, expected, observed: '배포의 /aleph.json에서 공개 키를 읽지 못해 점검하지 못함' };
   }
-  const target = new URL(original);
-  target.searchParams.set('select', 'id');
-  target.searchParams.set('limit', '1');
+  // 쿼리는 URL 문자열에 직접 붙입니다(위에서 원본 주소에 쿼리가 없음을 이미 확인했습니다).
+  const target = `${original.href}?select=id&limit=1`;
   const response = await fetch(target, {
     redirect: 'error', signal: AbortSignal.timeout(10000),
     headers: { Accept: 'application/json', apikey: key },
