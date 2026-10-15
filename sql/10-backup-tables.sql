@@ -29,6 +29,9 @@ revoke all on table public.study_notes_backup from public, anon, authenticated;
 revoke all on table public.study_notes_audit from public, anon, authenticated;
 -- 서버 전용 키(service_role)가 감사 기록을 고치거나 지우지 못하게 합니다.
 revoke update, delete, truncate on table public.study_notes_audit from service_role;
+-- 서버 전용 키가 꼭 필요한 권한만 갖게 합니다: 사본은 읽기만, 감사 기록은 읽기와 추가만.
+grant select on table public.study_notes_backup to service_role;
+grant select, insert on table public.study_notes_audit to service_role;
 
 -- 3) 사본 만들기: 침해 전에 한 번 실행합니다. 이미 있는 사본(id)은 건드리지 않습니다.
 --    내용 해시는 sha256( UTF-8(제목) + 0x00 + UTF-8(내용) )이고, 서버 코드(contentSha256)와 같은 방식입니다.
