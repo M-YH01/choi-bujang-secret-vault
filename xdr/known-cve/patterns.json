@@ -1,0 +1,38 @@
+{
+  "schema": "aleph.xdr.patterns.v1",
+  "moduleKey": "known-cve",
+  "source": "CVE-2021-44228 (Apache Log4j 원격 조회 구문 취약점, NIST NVD) 와 MITRE ATT&CK T1190 Exploit Public-Facing Application",
+  "note": "아래 점수 기준은 CVE나 MITRE가 정한 값이 아니라, 이 실습 경보에 맞춰 학생이 정한 시험용 기준입니다. 경보 설명 글에 적힌 'CVE' 글자만으로는 근거로 세지 않고, 요청 값 안의 실제 조회 구문을 봅니다.",
+  "patterns": [
+    {
+      "name": "jndi_lookup_in_header",
+      "technique": "T1190",
+      "when": { "field": "useragent", "contains": "${jndi:<ldap|ldaps|rmi|dns|iiop|http|https>://" },
+      "evidence": "CVE-2021-44228 / T1190: 요청 머리글(User-Agent 등)에 ${jndi:ldap://...} 형태의 원격 조회 구문이 들어가, 기록 도구가 그 구문을 풀다가 바깥 코드를 불러오게 하는 형태입니다."
+    },
+    {
+      "name": "jndi_lookup_in_parameter",
+      "technique": "T1190",
+      "when": { "field": "url", "contains": "${jndi:<ldap|ldaps|rmi|dns|iiop|http|https>://" },
+      "evidence": "CVE-2021-44228 / T1190: 주소의 요청 인자에 ${jndi:ldap://...} 형태의 원격 조회 구문이 들어가, 인자가 기록되는 순간 취약한 로그4j가 구문을 푸는 형태입니다."
+    },
+    {
+      "name": "jndi_lookup_repeated_or_multi_field",
+      "technique": "T1190",
+      "when": { "minFields": 2, "orMinRepeats": 2 },
+      "evidence": "CVE-2021-44228 / T1190: 같은 원격 조회 구문이 머리글과 주소에 함께 있거나 같은 주소에서 반복되는 것은, 우연한 입력이 아니라 취약한 위치를 찾으려는 자동 악용 형태입니다."
+    },
+    {
+      "name": "known_scanner_trace_with_lookup",
+      "technique": "T1190",
+      "when": { "descriptionHas": "점검", "needsLookup": true },
+      "evidence": "CVE-2021-44228 / T1190: 알려진 취약점 점검 도구가 상태 확인 주소 등에 같은 조회 구문을 넣어 보는 흔적이 구문과 함께 있으면 악용 시도로 봅니다."
+    },
+    {
+      "name": "cve_marker_without_lookup",
+      "technique": "T1190",
+      "when": { "needsT1190Tag": true, "lookup": false },
+      "evidence": "T1190 표시는 있으나 요청 값에 완전한 ${jndi:...://} 조회 구문이 없어(CVE 번호·단어·조각만 있음) 악용으로 단정할 수 없으므로 막지 않고 알림으로만 남깁니다."
+    }
+  ]
+}

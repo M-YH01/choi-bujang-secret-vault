@@ -1,0 +1,155 @@
+{
+  "schema": "aleph.xdr.result.v1",
+  "moduleKey": "known-cve",
+  "decisions": [
+    {
+      "alertId": "kc-01",
+      "action": "block",
+      "confidence": 0.85,
+      "reason": "jndi_lookup_in_header (T1190): 완전한 조회 구문이 요청 값에 있어 차단 후보입니다"
+    },
+    {
+      "alertId": "kc-02",
+      "action": "block",
+      "confidence": 0.85,
+      "reason": "jndi_lookup_in_parameter (T1190): 완전한 조회 구문이 요청 값에 있어 차단 후보입니다"
+    },
+    {
+      "alertId": "kc-03",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "jndi_lookup_repeated_or_multi_field (T1190): 완전한 조회 구문이 요청 값에 있어 차단 후보입니다"
+    },
+    {
+      "alertId": "kc-04",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "jndi_lookup_repeated_or_multi_field (T1190): 완전한 조회 구문이 요청 값에 있어 차단 후보입니다"
+    },
+    {
+      "alertId": "kc-05",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "known_scanner_trace_with_lookup (T1190): 완전한 조회 구문이 요청 값에 있어 차단 후보입니다"
+    },
+    {
+      "alertId": "kc-06",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "jndi_lookup_repeated_or_multi_field (T1190): 완전한 조회 구문이 요청 값에 있어 차단 후보입니다"
+    },
+    {
+      "alertId": "kc-07",
+      "action": "block",
+      "confidence": 0.85,
+      "reason": "jndi_lookup_in_header (T1190): 완전한 조회 구문이 요청 값에 있어 차단 후보입니다"
+    },
+    {
+      "alertId": "kc-08",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "jndi_lookup_repeated_or_multi_field (T1190): 완전한 조회 구문이 요청 값에 있어 차단 후보입니다"
+    },
+    {
+      "alertId": "kc-09",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "cve_marker_without_lookup (T1190): 구문이 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "kc-10",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "cve_marker_without_lookup (T1190): 구문이 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "kc-11",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "cve_marker_without_lookup (T1190): 구문이 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "kc-12",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "cve_marker_without_lookup (T1190): 구문이 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "kc-13",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "cve_marker_without_lookup (T1190): 구문이 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "kc-14",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "cve_marker_without_lookup (T1190): 구문이 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "kc-15",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "cve_marker_without_lookup (T1190): 구문이 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "kc-16",
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "cve_marker_without_lookup (T1190): 구문이 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "kc-17",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "no_pattern: 일치하는 패턴이 없어 기록만 합니다"
+    },
+    {
+      "alertId": "kc-18",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "no_pattern: 일치하는 패턴이 없어 기록만 합니다"
+    },
+    {
+      "alertId": "kc-19",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "no_pattern: 일치하는 패턴이 없어 기록만 합니다"
+    },
+    {
+      "alertId": "kc-20",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "no_pattern: 일치하는 패턴이 없어 기록만 합니다"
+    },
+    {
+      "alertId": "kc-21",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "no_pattern: 일치하는 패턴이 없어 기록만 합니다"
+    },
+    {
+      "alertId": "kc-22",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "no_pattern: 일치하는 패턴이 없어 기록만 합니다"
+    },
+    {
+      "alertId": "kc-23",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "no_pattern: 일치하는 패턴이 없어 기록만 합니다"
+    },
+    {
+      "alertId": "kc-24",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "no_pattern: 일치하는 패턴이 없어 기록만 합니다"
+    }
+  ],
+  "counts": {
+    "block": 8,
+    "alert": 8,
+    "record": 8
+  }
+}

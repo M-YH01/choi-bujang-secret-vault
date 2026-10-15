@@ -452,3 +452,12 @@
 - `xdr/web-injection/respond.mjs`: block만 만료 시간·경보 번호가 있는 차단 규칙으로 바꿔 `xdr/deny-rules.json`에 넣고, 알림은 `xdr/alerts.log`에 한 줄씩 쌓습니다(두 파일은 Git에 올리지 않음).
 - 다시 실행: `npm run xdr:run -- web-injection` → `xdr/web-injection/result.json` (block 8 · alert 9 · record 9, 정상 사건 차단 0).
 - 한계: 차단 규칙 파일은 아직 `src/decider.mjs`에 연결하지 않았고 판정기 규칙은 고치지 않았습니다. 이 결과는 내 PC 연습 실행이며 심판 판정이 아닙니다.
+
+## 보너스 xdr-03: 알려진 취약점 악용 판정 (연습)
+
+- `xdr/known-cve/read-alerts.mjs`: 가상 경보(`xdr/fixtures/known-cve.json`)에서 시각·출발 주소·계정·수준·설명만 뽑습니다(확인용, decide.mjs가 불러오지 않음). 요청 머리글·인자 값은 출력하지 않습니다.
+- `xdr/known-cve/patterns.json`: CVE-2021-44228 형태와 MITRE ATT&CK T1190 근거가 있는 패턴 5개(머리글·인자 안의 원격 조회 구문, 반복·여러 칸, 점검 도구 흔적, 구문 없는 CVE 표시). 점수 기준은 제가 연습용으로 정한 값입니다.
+- `xdr/known-cve/decide.mjs`: 가져오기(import) 없는 순수 함수. 요청 값 안에 완전한 조회 구문이 있을 때만 block 후보가 되고, 설명 글의 "CVE" 글자만으로는 막지 않습니다. 구문으로 접속하거나 실행하지 않고, 이유 글에도 원문을 옮기지 않습니다.
+- `xdr/known-cve/respond.mjs`: block만 만료 시간·경보 번호가 있는 차단 규칙으로 바꿔 `xdr/deny-rules.json`에 넣고, 알림은 `xdr/alerts.log`에 한 줄씩 쌓습니다(두 파일은 Git에 올리지 않음).
+- 다시 실행: `npm run xdr:run -- known-cve` → `xdr/known-cve/result.json` (block 8 · alert 8 · record 8, 정상 사건 차단 0).
+- 한계: 차단 규칙 파일은 아직 `src/decider.mjs`에 연결하지 않았고 판정기 규칙은 고치지 않았습니다. 영향받는 버전 찾기·패치는 이 모듈이 하지 않습니다. 이 결과는 내 PC 연습 실행이며 심판 판정이 아닙니다.
