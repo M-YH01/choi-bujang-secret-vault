@@ -15,6 +15,9 @@ function appOrigin(config) {
   return app;
 }
 
+// 보내지 않았거나 응답을 읽지 못한 점검의 표기입니다. 영문 not_run과 한글 미실행을 함께 적습니다. 성공이나 거부로 세지 않습니다.
+const NOT_RUN = 'not_run · 미실행';
+
 // 연결이 막힌 곳(격리 실행 등)에서는 요청 자체를 보낼 수 없습니다. 그 점검만 "미실행"으로 적고 묶음 생성은 멈추지 않습니다.
 // 보내지 못한 요청을 성공이나 거부로 적지 않습니다. 설정 오류(주소 형식 등)는 그대로 던져 알려 줍니다.
 const NETWORK_CODES = new Set(['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNRESET', 'ETIMEDOUT', 'ENETUNREACH', 'EHOSTUNREACH',
@@ -28,17 +31,29 @@ async function guarded(attackId, expected, run) {
   try {
     return await run();
   } catch (error) {
+    // 학생이 고쳐야 하는 설정 오류(aleph.config.json)는 숨기지 않고 알립니다.
+    if (/aleph\.config\.json/u.test(String(error?.message))) throw error;
     if (/redirect/iu.test(String(error?.cause?.message ?? error?.message))) {
-      return { attackId, expected, observed: '리다이렉트 응답을 받아 거부로 인정하지 않음' };
+      return { attackId, expected, observed: `${NOT_RUN}: 리다이렉트 응답을 받아 거부 여부를 확인하지 못했습니다.` };
     }
     if (isNetworkFailure(error)) {
-      return { attackId, expected, observed: '미실행: 요청을 보내지 못했습니다(연결 실패 또는 시간 초과). 성공으로 세지 않습니다.' };
+      return { attackId, expected, observed: `${NOT_RUN}: 요청을 보내지 못했습니다(연결 실패 또는 시간 초과). 성공으로 세지 않습니다.` };
     }
-    throw error;
+    // 응답 모양이 예상과 달라 읽지 못한 경우도 결과를 만들어 내지 않고 미실행으로 둡니다.
+    return { attackId, expected, observed: `${NOT_RUN}: 응답을 읽지 못해 결과를 기록하지 않았습니다.` };
   }
 }
 
-const request = (url) => fetch(url, {
+// 모든 요청은 이 함수로 보냅니다. 상태 코드와 머리글을 읽을 수 없는 응답은 결과로 쓰지 않고 오류로 던져 미실행이 되게 합니다.
+async function send(url, init) {
+  const response = await fetch(url, init);
+  if (!response || !Number.isInteger(response.status) || typeof response.headers?.get !== 'function') {
+    throw new TypeError('unreadable_response');
+  }
+  return response;
+}
+
+const request = (url) => send(url, {
   redirect: 'error', signal: AbortSignal.timeout(10000), headers: { Accept: 'application/json' },
 });
 
@@ -97,7 +112,7 @@ async function anonymousNoteItem(app) {
 
 // 11단계: 로그인 없이 기기 승인 상태를 물어도 거부되는가(승인 상태가 새어 나가지 않는가).
 async function anonymousDeviceStatus(app) {
-  const response = await fetch(new URL('/api/device', app), {
+  const response = await send(new URL('/api/device', app), {
     redirect: 'error', signal: AbortSignal.timeout(10000), headers: { Accept: 'application/json' },
   });
   let hasError = false;
@@ -111,7 +126,7 @@ async function anonymousDeviceStatus(app) {
 
 // 12단계: 로그인 없이 작전실 요약을 물어도 거부되는가. 실제로 보낸 요청의 HTTP 상태만 적습니다.
 async function anonymousOpsSummary(app) {
-  const response = await fetch(new URL('/api/ops/summary', app), {
+  const response = await send(new URL('/api/ops/summary', app), {
     redirect: 'error', signal: AbortSignal.timeout(10000), headers: { Accept: 'application/json' },
   });
   let hasError = false;
@@ -124,7 +139,7 @@ async function anonymousOpsSummary(app) {
 }
 
 // 요청을 보내지 않은 점검은 결과를 만들어 내지 않고 "미실행"으로만 적습니다(요약·추정 수치 없음).
-const notSent = (attackId, expected, reason) => ({ attackId, expected, observed: `미실행: ${reason}` });
+const notSent = (attackId, expected, reason) => ({ attackId, expected, observed: `${NOT_RUN}: ${reason}` });
 
 // 5단계: 공개 키로 원본 자료 주소를 직접 불러도 메모가 나오지 않는가.
 // 공개 키는 배포가 공개한 /aleph.json에서 읽어 요청 헤더에만 쓰고, 키와 응답 본문은 기록하지 않습니다.
@@ -147,7 +162,7 @@ async function directOriginalRead(config, app) {
   }
   // 쿼리는 URL 문자열에 직접 붙입니다(위에서 원본 주소에 쿼리가 없음을 이미 확인했습니다).
   const target = `${original.href}?select=id&limit=1`;
-  const response = await fetch(target, {
+  const response = await send(target, {
     redirect: 'error', signal: AbortSignal.timeout(10000),
     headers: { Accept: 'application/json', apikey: key },
   });

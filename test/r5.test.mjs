@@ -243,7 +243,7 @@ test('step 10 attack check sends no write request: the restore check is recorded
     };
     const results = await runAttackChecks({ ...config5, step: 10 });
     const restore = results.find((r) => r.attackId === 'anonymous_restore');
-    assert.ok(restore.observed.startsWith('미실행'));
+    assert.ok(restore.observed.startsWith('not_run · 미실행'));
     assert.equal(/HTTP \d{3}/u.test(restore.observed), false);
     assert.equal(calls.some((c) => c.url.includes('/api/restore/')), false);
     assert.deepEqual([...new Set(calls.map((c) => c.method))], ['GET']);
@@ -303,11 +303,11 @@ test('step 12 attack check sends one anonymous request and marks everything it d
     assert.equal(JSON.stringify(calls.find((c) => c.url.endsWith('/api/ops/summary')).headers).toLowerCase().includes('authorization'), false);
     for (const id of ['cross_user_note_read', 'verification_matrix', 'attack_41']) {
       const row = results.find((r) => r.attackId === id);
-      assert.ok(row.observed.startsWith('미실행'), id);
+      assert.ok(row.observed.startsWith('not_run · 미실행'), id);
       assert.equal(/HTTP|\d+줄/u.test(row.observed), false, `${id}에 보내지 않은 요청의 상태나 수치를 적으면 안 됩니다.`);
     }
     // 요청을 보낸 줄에는 실제 HTTP 상태가 있어야 합니다.
-    for (const row of results.filter((r) => !r.observed.startsWith('미실행') && r.attackId !== 'direct_original_read')) {
+    for (const row of results.filter((r) => !r.observed.startsWith('not_run · 미실행') && r.attackId !== 'direct_original_read')) {
       assert.match(row.observed, /HTTP \d{3}|메모 ?가 없|없음/u, row.attackId);
     }
     assert.ok(results.length <= 20);
@@ -327,7 +327,7 @@ test('with no network the attack checks do not stop the bundle: every unsent req
       assert.equal(new Set(results.map((r) => r.attackId)).size, results.length);
       for (const row of results) {
         assert.deepEqual(Object.keys(row).sort(), ['attackId', 'expected', 'observed']);
-        assert.ok(row.observed.startsWith('미실행'), `${step}단계 ${row.attackId}`);
+        assert.ok(row.observed.startsWith('not_run · 미실행'), `${step}단계 ${row.attackId}`);
         assert.ok(row.observed.length <= 300 && row.expected.length <= 300);
       }
     }
@@ -353,6 +353,18 @@ test('the direct original read puts its query in the URL text and sends the publ
     assert.equal(call.url.includes('pub-key-for-test'), false);
     assert.equal(call.headers.apikey, 'pub-key-for-test');
     assert.match(results.find((r) => r.attackId === 'direct_original_read').observed, /거부됨 \(HTTP 401\)/u);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('a response that cannot be read is recorded as not_run and never stops the bundle or counts as a result', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ status: 200 });   // headers·json이 없는 응답 모양
+  try {
+    const results = await runAttackChecks({ ...config5, step: 12 });
+    for (const row of results) assert.ok(row.observed.startsWith('not_run · 미실행'), row.attackId);
+    assert.ok(results.length <= 20);
   } finally {
     globalThis.fetch = originalFetch;
   }
