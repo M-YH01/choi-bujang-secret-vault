@@ -37,6 +37,7 @@
 - 메모 번호는 경로의 `:id`를 우선 쓰고, 번호 없는 주소 `POST /api/restore/notes`로 부르면 본문의 `id`(또는 `noteId`)에서 읽습니다. 로그인·소유자·해시 검사는 두 방식 모두 같고, 번호가 없거나 UUID가 아니거나 남의 것이면 같은 404입니다.
 - 로그인한 요청이 거절되면 이유만 감사 표에 한 줄 남깁니다(`denied_no_backup`, `denied_not_owner`, `denied_bad_id`, `denied_conflict`). 응답은 이유와 상관없이 같은 404이고, 번호·본문은 기록하지 않습니다. 기록이 실패해도 응답은 바뀌지 않습니다. 로그인 없는 요청은 기록하지 않습니다.
 - 요청이 복구 경로까지 왔지만 로그인·요청 방식 단계에서 거절되면 Vercel 로그에 `restore_rejected method|login`과 로그인 값이 있었는지 여부만 남습니다(값은 기록하지 않음).
+- `/api` 아래에서 어떤 함수·파일과도 맞지 않는 주소로 온 요청은 `vercel.json`의 대체 경로(rewrite)로 `api/unmatched/index.js`에 가서 방식과 경로만 로그(`unmatched_api`)에 남기고 JSON 404를 받습니다. 구체적인 함수와 `public/` 파일이 우선인 것은 Vercel의 대체 경로 규칙을 근거로 하며, 배포 뒤 확인이 필요합니다.
 - 본문 `{"dryRun": true}`를 보내면 쓰지 않고 "복원될 것인가"만 답합니다.
 - 성공 응답에는 사본 검증 결과(`backupVerified`, `backupVersion`)와 바뀔 항목의 이름(`changes`: `title`·`content`·`row_missing`)만 들어갑니다. 해시가 맞지 않으면 422와 `backupVerified: false`입니다. 제목·본문은 응답에 넣지 않습니다.
 

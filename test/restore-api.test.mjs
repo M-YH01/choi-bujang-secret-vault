@@ -361,3 +361,24 @@ test('requests rejected before the copy check leave only a short code in the log
   assert.deepEqual(lines, ['restore_rejected method GET with_login', 'restore_rejected login no_login', 'restore_rejected login with_login']);
   assert.equal(lines.join(' ').includes('tokB') || lines.join(' ').includes('bad '), false);
 });
+
+test('the unmatched-api function logs only method and path, answers a JSON 404 and is wired as a fallback rewrite', async () => {
+  const { unmatchedApi } = await import('../api/unmatched/index.js');
+  const originalWarn = console.warn;
+  const lines = [];
+  console.warn = (...parts) => lines.push(parts.join(' '));
+  const res = { headers: {}, setHeader(k, v) { this.headers[k] = v; }, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; } };
+  try {
+    unmatchedApi({ method: 'POST', url: '/api/unmatched?p=restore%2Fx&token=SECRET', query: { p: 'restore/x', token: 'SECRET' }, headers: { authorization: 'Bearer SECRET' }, body: { content: '메모' } }, res);
+    unmatchedApi({ method: 'GET', query: { p: ['a', 'b c<script>'] } }, res);
+    unmatchedApi({ method: 'GET', query: {} }, res);
+  } finally {
+    console.warn = originalWarn;
+  }
+  assert.equal(res.statusCode, 404);
+  assert.equal(res.body.error, 'NOT_FOUND');
+  assert.deepEqual(lines, ['unmatched_api POST /api/restore/x', 'unmatched_api GET /api/a/b?c?script?', 'unmatched_api GET /api/']);
+  assert.equal(lines.join(' ').includes('SECRET'), false);
+  const vercel = JSON.parse(await readFile(resolve(root, 'vercel.json'), 'utf8'));
+  assert.deepEqual(vercel.rewrites, [{ source: '/api/:path*', destination: '/api/unmatched?p=:path*' }]);
+});
