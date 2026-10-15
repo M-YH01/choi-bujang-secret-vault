@@ -3,6 +3,10 @@ import { test } from 'node:test';
 import { deploymentIdentity } from '../scripts/deployment-identity.mjs';
 import { runAttackChecks } from '../src/attack-check.mjs';
 
+// 아래 대부분의 시험은 요청을 실제로 보내는 모드(학생이 자기 PC에서 켜는 모드)를 확인합니다.
+// 기본값(요청 기록이 없는 점검을 not_run으로 둠)은 파일 맨 끝 시험이 확인합니다.
+process.env.ALEPH_ATTACK_CHECK_SEND = '1';
+
 const config = {
   step: 1,
   judgeIssuer: 'https://aleph-judge-production.up.railway.app/defense/judge',
@@ -367,5 +371,33 @@ test('a response that cannot be read is recorded as not_run and never stops the 
     assert.ok(results.length <= 20);
   } finally {
     globalThis.fetch = originalFetch;
+  }
+});
+
+test('by default the six request-based checks send nothing and are recorded as not_run, with no HTTP status invented', async () => {
+  const originalFetch = globalThis.fetch;
+  const saved = process.env.ALEPH_ATTACK_CHECK_SEND;
+  delete process.env.ALEPH_ATTACK_CHECK_SEND;
+  let sent = 0;
+  globalThis.fetch = async () => { sent += 1; return new Response('{}', { status: 200 }); };
+  try {
+    for (const step of [1, 5, 12]) {
+      const results = await runAttackChecks({ ...config5, step });
+      assert.ok(results.length >= 1 && results.length <= 20);
+      assert.equal(new Set(results.map((r) => r.attackId)).size, results.length);
+      for (const row of results) {
+        assert.deepEqual(Object.keys(row).sort(), ['attackId', 'expected', 'observed']);
+        assert.ok(row.observed.startsWith('not_run · 미실행'), `${step}단계 ${row.attackId}`);
+        assert.equal(/HTTP \d{3}/u.test(row.observed), false, row.attackId);
+      }
+    }
+    assert.equal(sent, 0, '기본 모드에서는 요청을 보내지 않습니다.');
+    const twelve = await runAttackChecks({ ...config5, step: 12 });
+    for (const id of ['anonymous_note_read', 'anonymous_note_list', 'anonymous_note_item', 'direct_original_read', 'anonymous_device_status', 'anonymous_ops_summary']) {
+      assert.ok(twelve.some((r) => r.attackId === id), id);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (saved === undefined) delete process.env.ALEPH_ATTACK_CHECK_SEND; else process.env.ALEPH_ATTACK_CHECK_SEND = saved;
   }
 });

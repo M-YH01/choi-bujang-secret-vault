@@ -139,6 +139,7 @@ async function anonymousOpsSummary(app) {
 }
 
 // 요청을 보내지 않은 점검은 결과를 만들어 내지 않고 "미실행"으로만 적습니다(요약·추정 수치 없음).
+const NO_RECORD = '심판이 확인할 수 있는 요청 기록이 없어 결과를 적지 않았습니다. 실제 요청 결과와 요청 ID는 npm run verify:matrix 표에 있습니다.';
 const notSent = (attackId, expected, reason) => ({ attackId, expected, observed: `${NOT_RUN}: ${reason}` });
 
 // 5단계: 공개 키로 원본 자료 주소를 직접 불러도 메모가 나오지 않는가.
@@ -181,21 +182,26 @@ export async function runAttackChecks(config) {
     throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
   }
   const app = appOrigin(config);
-  const dataJson = () => guarded('anonymous_note_read', '비로그인 화면에서 가상 메모를 확인', () => anonymousDataJson(config, app));
+  // 심판이 확인할 수 있는 요청 기록이 없는 점검은 결과(HTTP 상태)를 적지 않고 not_run으로 둡니다.
+  // 학생이 자기 PC에서 직접 실측하려면 ALEPH_ATTACK_CHECK_SEND=1 로 실행합니다(그 결과는 심판 기록과 대조되지 않습니다).
+  const live = process.env.ALEPH_ATTACK_CHECK_SEND === '1';
+  const check = (attackId, expected, run) => (live ? guarded(attackId, expected, run)
+    : Promise.resolve(notSent(attackId, expected, NO_RECORD)));
+  const dataJson = () => check('anonymous_note_read', '비로그인 화면에서 가상 메모를 확인', () => anonymousDataJson(config, app));
   if (config.step === 1) return [await dataJson()];
   // 3단계에서는 /data.json에 메모가 없는지, /api/notes가 로그인 없이 거부되는지 함께 봅니다.
   // 정상 로그인(A)과 타인(B) 요청은 토큰이 필요해서 이 점검에서는 실행하지 않습니다(미실행).
   // 4단계의 A·B 교차 요청(남의 번호로 읽기·수정·삭제)도 토큰이 필요해 이 점검에서는 미실행입니다.
   const results = [await dataJson(),
-    await guarded('anonymous_note_list', '로그인 없이 /api/notes 메모 목록을 읽기', () => anonymousNoteList(app))];
-  if (config.step >= 4) results.push(await guarded('anonymous_note_item', '로그인 없이 /api/notes/:id 한 건을 읽기', () => anonymousNoteItem(app)));
-  if (config.step >= 5) results.push(await guarded('direct_original_read', '공개 키로 원본 자료 주소를 직접 불러 메모 읽기', () => directOriginalRead(config, app)));
+    await check('anonymous_note_list', '로그인 없이 /api/notes 메모 목록을 읽기', () => anonymousNoteList(app))];
+  if (config.step >= 4) results.push(await check('anonymous_note_item', '로그인 없이 /api/notes/:id 한 건을 읽기', () => anonymousNoteItem(app)));
+  if (config.step >= 5) results.push(await check('direct_original_read', '공개 키로 원본 자료 주소를 직접 불러 메모 읽기', () => directOriginalRead(config, app)));
   // 복원 경로는 POST(쓰기)만 받습니다. 이 자기 점검은 읽기(GET)만 보내므로 요청을 보내지 않고 미실행으로 적습니다.
   if (config.step >= 10) results.push(notSent('anonymous_restore', '로그인 없이 복원 경로로 메모 되살리기', '복원은 쓰기(POST) 요청이라 이 점검에서는 요청을 보내지 않았습니다. 읽기(GET)만 보냅니다.'));
   // 승인된 기기에서의 정상 열림과 승인 전 거부(로그인 토큰·기기 쿠키 필요)는 이 점검에서 실행하지 않습니다(미실행).
-  if (config.step >= 11) results.push(await guarded('anonymous_device_status', '로그인 없이 기기 승인 상태 읽기', () => anonymousDeviceStatus(app)));
+  if (config.step >= 11) results.push(await check('anonymous_device_status', '로그인 없이 기기 승인 상태 읽기', () => anonymousDeviceStatus(app)));
   if (config.step >= 12) {
-    results.push(await guarded('anonymous_ops_summary', '로그인 없이 작전실 요약 읽기', () => anonymousOpsSummary(app)));
+    results.push(await check('anonymous_ops_summary', '로그인 없이 작전실 요약 읽기', () => anonymousOpsSummary(app)));
     results.push(
       notSent('cross_user_note_read', '다른 사용자의 메모 번호로 읽기', '로그인 토큰이 필요해 이 점검에서는 요청을 보내지 않았습니다.'),
       notSent('verification_matrix', '1~11단계 정상·금지 요청 실측 표', '이 점검은 요청을 보내지 않았습니다. 실측 표는 npm run verify:matrix로 따로 만들며 제출 묶음에는 넣지 않았습니다.'),
