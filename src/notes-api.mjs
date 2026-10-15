@@ -5,12 +5,17 @@
 // - 토큰이 없거나 검사에 실패하면 자료 없이 401 JSON 오류로 거부합니다.
 // - 서버 전용 키(SUPABASE_SECRET_KEY)는 환경변수에서만 읽고, 응답·로그에 내보내지 않습니다.
 //
+// 8단계: 한 건 경로는 먼저 저장된 소유자(owner_id)를 따로 조회해 검증된 사용자와 대조하고(ownerOf),
+// 통과해도 읽기·수정·삭제 질의에 다시 owner_id 조건을 붙입니다. 요청 본문·헤더·화면 메뉴의 role은
+// 읽지 않으며, 이 DB에는 저장된 강사 권한이 없어서 강사 경로는 만들지 않았습니다.
+// 거부 사유는 구역과 짧은 코드만 서버 로그에 남기고(번호·토큰·본문은 남기지 않음), 응답은 404로 같습니다.
 // 4단계: 읽기·추가·수정·삭제 모두 "서버가 확인한 사용자 id = 행의 owner_id"일 때만 허용합니다.
 // 남의 메모와 없는 메모는 똑같이 404로 답해, 번호를 바꿔 보는 요청으로 존재 여부도 알 수 없게 합니다.
 // 주인이 없는(owner_id가 비어 있는) 행은 아무에게도 보이지 않습니다. 기본 거부입니다.
 import { createClient } from '@supabase/supabase-js';
 import config from '../aleph.config.json' with { type: 'json' };
 import { createLoginVerifier } from './verify-login.mjs';
+import { resourceId } from './resources.mjs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const MAX_TITLE = 200;
@@ -39,6 +44,12 @@ export function createSupabaseStore(client) {
         .limit(MAX_LIST);
       if (error) throw storeError(error);
       return (data ?? []).map(toNote);
+    },
+    // 저장된 소유자만 조회합니다(제목·내용은 읽지 않음). 없으면 null, 주인이 없으면 ownerId가 null입니다.
+    async ownerOf(id) {
+      const { data, error } = await table().select('id, owner_id').eq('id', id).maybeSingle();
+      if (error) throw storeError(error);
+      return data ? { ownerId: typeof data.owner_id === 'string' ? data.owner_id : null } : null;
     },
     async get(id, userId) {
       const { data, error } = await table().select('id, title, content')
@@ -171,11 +182,25 @@ export function createNotesApi({ verify, getStore }) {
     if (typeof id !== 'string' || !UUID.test(id)) {
       return fail(response, 404, 'NOT_FOUND', '메모를 찾을 수 없습니다.');
     }
+    const notFound = () => fail(response, 404, 'NOT_FOUND', '메모를 찾을 수 없습니다.');
+    // 구역별 자원 ID: 이 경로는 항상 메모(note) 구역의 자료 하나를 가리킵니다.
+    const resource = resourceId('note', id);
+    // 1) 저장된 소유자와 검증된 사용자를 대조합니다. 남의 메모와 없는 메모는 같은 404입니다.
+    const owned = await run(response, async (store) => {
+      const owner = await store.ownerOf(id);
+      if (!owner || owner.ownerId !== identity.userId) {
+        console.warn('notes_denied', 'note', owner ? 'not_owner' : 'not_found');
+        notFound();
+        return false;
+      }
+      return true;
+    });
+    if (owned !== true) return undefined;
+    response.setHeader('X-Resource-Id', resource);
     if (request.method === 'GET') {
       return run(response, async (store) => {
         const note = await store.get(id, identity.userId);
-        return note ? send(response, 200, note)
-          : fail(response, 404, 'NOT_FOUND', '메모를 찾을 수 없습니다.');
+        return note ? send(response, 200, note) : notFound();
       });
     }
     if (request.method === 'PUT') {

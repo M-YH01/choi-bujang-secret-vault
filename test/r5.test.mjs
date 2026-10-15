@@ -106,7 +106,7 @@ test('step 3 identity adds the login issuer and routes, tied to the same Supabas
   assert.throws(() => deploymentIdentity(env, { ...config3, identityProvider: null }));
   assert.throws(() => deploymentIdentity(env, { ...config3, allowedRoutes: [] }));
   assert.throws(() => deploymentIdentity(env, { ...config3, allowedRoutes: ['api/notes'] }));
-  assert.throws(() => deploymentIdentity(env, { ...config3, step: 8 }));
+  assert.throws(() => deploymentIdentity(env, { ...config3, step: 9 }));
   assert.equal(deploymentIdentity(env, { ...config3, step: 4 }).step, 4);
   assert.equal('originalApiUrl' in deploymentIdentity(env, { ...config3, step: 4 }), false);
   // 발급자가 다른 프로젝트를 가리키면 거부합니다.
@@ -215,4 +215,18 @@ test('step 6 identity keeps the step 5 fields', () => {
   const identity = deploymentIdentity(env, { ...config5, step: 6 });
   assert.equal(identity.step, 6);
   assert.equal(identity.originalApiUrl, config5.originalApiUrl);
+});
+
+test('step 8 allowed routes carry the method and must match the decider allow list shape', () => {
+  const config8 = { ...config5, step: 8, allowedRoutes: ['GET /api/notes/:id', 'PUT /api/notes/:id', 'DELETE /api/notes/:id'] };
+  const identity = deploymentIdentity(env, config8);
+  assert.equal(identity.step, 8);
+  assert.deepEqual(identity.allowedRoutes, config8.allowedRoutes);
+  assert.equal(identity.originalApiUrl, config5.originalApiUrl);
+  // 8단계부터는 메서드 없는 경로, 알 수 없는 메서드, 소문자 메서드를 받지 않습니다.
+  for (const bad of [['/api/notes/:id'], ['FETCH /api/notes/:id'], ['get /api/notes/:id'], ['GET api/notes/:id'], ['GET  /api/notes/:id'], []]) {
+    assert.throws(() => deploymentIdentity(env, { ...config8, allowedRoutes: bad }), undefined, JSON.stringify(bad));
+  }
+  // 3~7단계의 경로만 적는 형식은 그대로 받습니다.
+  assert.deepEqual(deploymentIdentity(env, { ...config5, step: 7 }).allowedRoutes, config5.allowedRoutes);
 });

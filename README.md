@@ -8,9 +8,59 @@
 2. 방어전 1단계 카드의 **Deploy** 버튼을 누릅니다. Vercel에 GitHub로 로그인하고, 새 저장소가 **본인 계정의 Public 저장소**인지 확인한 뒤 Deploy를 누릅니다.
 3. 배포가 끝나면 화면에 나온 `https://…vercel.app` 주소를 방어전 1단계 카드에 붙여넣고 제출합니다. 저장소 주소나 설정 파일은 적지 않습니다.
 
-배포가 끝나면 `/`에서 점령된 가상 자료실을 볼 수 있습니다. 시작 틀에서는 `/data.json`에 같은 가상 메모가 공개되어 있었고, 이 공개 상태를 확인하는 것이 1단계의 출발점이었습니다. 이 저장소는 2단계 작업으로 메모를 `/data.json`에서 빼고 서버 함수로 읽게 바꿨고, 3단계에서 로그인한 사람만 읽고 고치게, 4단계에서 로그인해도 본인 메모만 다루게, 5단계에서 자료 요청을 서버 함수 한곳으로 모으게, 6단계에서 판정기에 기기 등록 규칙을, 7단계에서 평소와 다른 접속은 다시 확인하는 규칙을 더했습니다(바로 아래 참고). 1단계 접수와 심판 판정은 포털에서 확인합니다.
+배포가 끝나면 `/`에서 점령된 가상 자료실을 볼 수 있습니다. 시작 틀에서는 `/data.json`에 같은 가상 메모가 공개되어 있었고, 이 공개 상태를 확인하는 것이 1단계의 출발점이었습니다. 이 저장소는 2단계 작업으로 메모를 `/data.json`에서 빼고 서버 함수로 읽게 바꿨고, 3단계에서 로그인한 사람만 읽고 고치게, 4단계에서 로그인해도 본인 메모만 다루게, 5단계에서 자료 요청을 서버 함수 한곳으로 모으게, 6단계에서 판정기에 기기 등록 규칙을, 7단계에서 평소와 다른 접속은 다시 확인하는 규칙을, 8단계에서 자료를 구역으로 나누는 규칙을 더했습니다(바로 아래 참고). 1단계 접수와 심판 판정은 포털에서 확인합니다.
 
-## 7단계: 평소와 다른 접속은 다시 확인함 (현재 작동하는 기능)
+## 8단계: 자료마다 갈 수 있는 구역을 나눔 (현재 작동하는 기능)
+
+### 구역과 자원 ID (제작 1)
+
+- 자료를 세 구역으로 나눕니다: 메모(`note`), 반 공지(`notice`), 강사 자료(`instructor`). `src/resources.mjs`가 `구역:번호` 모양의 **자원 ID**(`note:<메모 번호>` 등)를 만들고 읽습니다. 구역 이름과 번호 모양이 맞지 않으면 만들지 않습니다.
+- 메모 한 건 API(`/api/notes/:id`)의 성공 응답에는 `X-Resource-Id: note:<번호>` 헤더가 붙습니다(거부 응답에는 붙지 않습니다). 응답 본문(`{id,title,body}`)과 기존 주소는 바꾸지 않았고, 화면 메뉴도 바꾸지 않았습니다.
+- 반 공지와 강사 자료는 **이 저장소에 자료와 API가 없습니다.** 자원 ID 모양만 정의했습니다.
+
+### 판정기 구역 규칙 (제작 2)
+
+`src/decider.mjs`에 규칙 `resource_zone`을 더했습니다. `RULE_IDS`는 `['device_registered', 'resource_zone', 'step_up_required']`이고, 판정은 기기 규칙 → 구역 규칙 → 재확인 규칙 순서입니다(허용되지 않는 경로는 복합 이상 접속이어도 재확인이 아니라 거부입니다). 허용 목록에 없으면 모두 `deny`·`resource_not_allowed`입니다.
+
+| 서비스 | 허용 | 거부 |
+|---|---|---|
+| `notes` (메모) | `GET`·`PUT`·`DELETE /notes/:id` (자료 ID 하나를 고르는 경로만) | 전체 목록 `GET /notes`, 추가 `POST /notes`, 그 밖의 메서드 |
+| `announcements` (반 공지) | `GET /announcements`, `GET /announcements/:id` | `POST`·`PUT`·`PATCH`·`DELETE` 전부 (누구에게나) |
+| `instructor` (강사 자료) | 없음 | 전부 |
+| 그 밖의 서비스·경로 | 없음 | 전부 |
+
+- 경로는 `route`의 모양(`GET /notes/:id`)과 실제 `path`(`/notes/<번호>`)가 서로 일치하고, `service`·`method`도 같을 때만 인정합니다. `/api` 접두사가 붙은 모양(`GET /api/notes/:id`)도 같은 규칙으로 읽습니다.
+- 메모 번호는 UUID로 좁히지 않습니다(심판의 가상 요청 번호는 UUID가 아닐 수 있음). 다만 한 구간이어야 하고 `.`, `..`, 빈 값, 128자 초과, 공백·제어 문자·`?`·`#`·`\`, 인코딩된 슬래시(`%2F`, `%5C`)는 거부합니다.
+- 쿼리(`queryLength`, `querySha256`)는 읽지 않아 쿼리로 기능을 고를 수 없습니다. `:id`와 같은 깊이에 `export` 같은 기능 경로를 두지 않았고, `GET /notes/export`처럼 route에 글자가 박힌 경로는 허용 목록에 없어 거부됩니다.
+- 판정기는 사용자 역할이 요청에 없으므로 `role`·`identity`·`device`·`geo`를 읽지 않습니다. **메모 주인 비교는 판정기가 아니라 아래 API가 합니다.** 강사의 공지 수정은 판정기가 아니라 서버의 관리 경로에서 처리해야 하는데, 그 관리 경로와 강사 권한 저장소는 이 저장소에 **아직 없습니다(미구현)**.
+- `aleph.config.json`의 `allowedRoutes`는 판정기가 허용하고 이 서버가 실제로 제공하는 경로만 메서드를 붙여 적었습니다: `GET /api/notes/:id`, `PUT /api/notes/:id`, `DELETE /api/notes/:id`. 반 공지 읽기는 판정기가 허용하지만 이 서버에는 공지 API가 없어 적지 않았습니다. `step`은 8입니다. 8단계부터 배포 정보(`scripts/deployment-identity.mjs`)는 메서드 없는 경로를 받지 않습니다.
+
+### 자료 API의 소유자 재대조 (제작 3)
+
+`src/notes-api.mjs`의 한 건 경로(GET·PUT·DELETE)는 두 번 확인합니다.
+1. DB에 **저장된 소유자(`owner_id`)만** 따로 조회해 서버가 검증한 사용자 ID와 대조합니다(제목·내용은 읽지 않음). 남의 메모, 주인 없는 메모, 없는 번호는 모두 같은 `404 NOT_FOUND`입니다.
+2. 통과해도 읽기·수정·삭제 질의에 다시 `owner_id = 내 ID` 조건을 붙이고, 수정할 때 새 행의 `owner_id`도 본인으로 고정합니다.
+
+- 요청 본문·헤더·화면 메뉴의 `role`은 읽지 않습니다. 이 DB에는 저장된 강사 권한이 없어서 강사 경로는 만들지 않았습니다. 메뉴를 우회한 직접 API 요청에서도 다른 사람의 메모는 나오지 않습니다(시험으로 확인).
+- 거부 사유는 서버 로그에 구역과 짧은 코드만 남깁니다: `notes_denied note not_owner`(남의 메모 또는 주인 없는 메모) / `notes_denied note not_found`(없는 번호). 번호·토큰·본문은 남기지 않습니다.
+
+### 확인 순서
+
+1. `npm run decider:test` — 가상 요청 네 건이 모두 `통과`여야 합니다(기기·재확인 연습). 이 명령은 구역 규칙을 직접 보여 주지 않습니다.
+2. `npm run test:decider` — 자기 메모 한 건 읽기·수정·삭제 허용, 전체 목록·추가 거부, 공지 쓰기 거부, 강사 자료와 알 수 없는 경로 거부, 번호·경로 모양 변형 거부, 기기 규칙과 재확인 규칙과의 순서를 확인합니다.
+3. `npm run test:notes` — 다른 사용자·주인 없는 행·꾸며 낸 역할 요청이 모두 404인지, 거부 로그에 번호·토큰이 없는지, 자원 ID 헤더를 확인합니다.
+4. 배포 뒤 화면에서 A와 B 창을 따로 열어 각자 자기 메모만 읽고 고치는지 직접 확인합니다.
+
+이 명령들은 가상 요청과 가짜 저장소로 한 연습이며 **심판 판정이나 운영 반 엔진의 결과가 아닙니다.**
+
+### 8단계의 알려진 약점과 확인하지 못한 것
+
+- **서비스 이름 `announcements`·`instructor`와 거부 이유 코드 `resource_not_allowed`는 계약(`docs/DECIDER_REQUEST.md`)에 정의돼 있지 않아 이 저장소가 정한 값입니다.** 운영 등록부의 `allowedReasonCodes`에 이 코드가 있는지, 심판이 같은 서비스 이름을 쓰는지 확인하지 못했습니다. 이름이 다르면 반 공지 읽기가 거부로 나올 수 있습니다(그 밖의 거부 동작은 영향이 없습니다).
+- **판정기가 이 서버의 실제 요청 경로에 연결돼 있는지는 확인하지 못했습니다.** 만약 운영 엔진이 `allowedRoutes`와 판정기를 실제 요청에 적용한다면, 전체 목록(`GET /api/notes`)과 추가(`POST /api/notes`)가 거부돼 **화면의 메모 목록·추가가 막힐 수 있습니다.** 이 서버 코드는 두 경로를 계속 제공하지만 `allowedRoutes`에는 적지 않았습니다. 배포 뒤 A 화면에서 목록과 추가가 되는지 직접 확인해야 합니다.
+- 강사 권한(관리 경로)과 반 공지 API는 만들지 않았습니다. 강사가 공지를 고치는 흐름은 미구현입니다.
+- 5~7단계까지의 약점(서버 전용 키가 RLS를 우회하고 소유자 검사 코드가 방어선인 점, 호출 횟수 제한 없음, 화면이 실행 중 공개 키를 읽음, 판정기와 실제 접속 경로의 연결 미확인)은 그대로입니다.
+
+## 7단계: 평소와 다른 접속은 다시 확인함 (8단계의 바탕)
 
 - `src/decider.mjs`에 규칙 `step_up_required`를 더했습니다. `RULE_IDS`는 `['device_registered', 'step_up_required']`입니다. 6단계의 기기 규칙은 그대로 먼저 적용됩니다(미등록 기기는 항상 `deny`·`device_not_registered`).
 - **다시 확인(`step_up`, 이유 코드 `step_up_required`)을 요구하는 조합**: 아래 세 가지가 **모두** 겹칠 때만입니다.
@@ -22,7 +72,7 @@
 - **다시 확인이 끝난 요청**은 `allow`입니다. 엔진이 준 `stepUp`이 `verified: true`(정확히 불리언 true)이고 `authAgeSeconds`가 0~900 사이 정수일 때만 인정합니다. 그 밖의 모양(문자열 `'true'`, 범위 밖 나이, 값 없음)은 계속 `step_up`입니다.
 - **입력 검사(제작 1)**: 접속 정보는 `signals.source`가 `judge_fixture`인 심판의 가상 사건일 때만 읽습니다. 현재 실제 경로의 `source`는 `none`이라 실제 접속은 이 규칙에 걸리지 않고, `judge_fixture` 값을 실제 위치 증거로 취급하지 않습니다. `source`가 다르거나(`none`, `client`, 빈 값 등), `hour`가 0~23 정수가 아니거나, `network`가 문자열이 아니면 **정상값으로 채우지 않고 근거에서 뺍니다**(이상으로 세지 않음). 요청에 덧붙인 `role`·`identity`·`device`·`geo`·헤더는 읽지 않아 접속 정보로 승격되지 않습니다. 시험(`test/decider.test.mjs`)이 이를 확인합니다.
 - 판정기가 읽는 요청 항목은 계약의 이름 중 `requestId`, `deviceRegistered`, `signals`, `recentEvents`, `stepUp`뿐입니다. 응답은 `schema`, `requestId`, `decision`, `reasonCode`, `ruleIds` 다섯 항목이고 함수 이름·인자는 그대로입니다.
-- 기존 자료실 주소와 브라우저 화면은 바꾸지 않았습니다. `aleph.config.json`의 `step`은 7입니다.
+- 기존 자료실 주소와 브라우저 화면은 바꾸지 않았습니다. (`aleph.config.json`의 `step`은 7단계 시점에 7이었고 8단계에서 8로 올렸습니다.)
 
 ### 확인 순서
 
@@ -93,7 +143,7 @@
 - 수정은 기존 행이 본인 것일 때만 바뀌고, 저장하는 새 행의 `owner_id`도 본인 id로 고정합니다. 본문에 다른 `owner_id`를 넣어도 주인은 바뀌지 않습니다.
 - 남의 메모를 읽거나 고치거나 지우려 하면 **404 `NOT_FOUND`**입니다. 없는 번호와 같은 응답이라 번호를 바꿔 보는 요청으로 남의 메모가 있는지도 알 수 없습니다. 응답 모양은 그대로입니다(한 건 `{id,title,body}`, 수정 본문 `{title,body}`).
 - `owner_id`가 비어 있는 메모는 **아무에게도 보이지 않습니다**(기본 거부). 3단계에서는 이런 가상 메모가 로그인한 모두에게 보였습니다. 기존 가상 메모를 A에게 연결하려면 학습용 SQL(이메일이 들어가므로 이 저장소에 두지 않습니다)을 Supabase SQL Editor에서 직접 실행해야 합니다. 실행 전에는 목록이 비어 보이는 것이 정상입니다.
-- `allowedRoutes`는 그대로 `/api/notes`(GET·POST)와 `/api/notes/:id`(GET·PUT·DELETE)입니다. `aleph.config.json`의 `step`은 4이고, 빌드(`scripts/deployment-identity.mjs`, `scripts/build-public.mjs`)와 `src/attack-check.mjs`가 step 4를 받습니다.
+- (4단계 시점) `allowedRoutes`는 그대로 `/api/notes`(GET·POST)와 `/api/notes/:id`(GET·PUT·DELETE)였습니다. 8단계에서 메서드를 붙인 세 경로로 바뀌었습니다. `aleph.config.json`의 `step`은 4이고, 빌드(`scripts/deployment-identity.mjs`, `scripts/build-public.mjs`)와 `src/attack-check.mjs`가 step 4를 받습니다.
 - `src/attack-check.mjs`의 4단계 점검: 비로그인 `/data.json`, 비로그인 `GET /api/notes`, 비로그인 `GET /api/notes/:id`(존재하지 않는 시험 번호)를 실제로 요청해 결과만 기록합니다. A·B 교차 요청(남의 번호로 읽기·수정·삭제)은 로그인 토큰이 필요해 **미실행**입니다. 그 부분은 화면에서 A와 B 창을 따로 열어 직접 확인합니다.
 - DB 쪽 권한(제작 3): `study_notes`에서 `PUBLIC`·`anon`·`authenticated` 권한을 회수한 뒤 `authenticated`에 SELECT·INSERT·UPDATE·DELETE만 주고, 네 가지 모두 `auth.uid() = owner_id`인 행에만 허용하는 RLS 정책을 거는 SQL을 **제안**했습니다. 이 저장소에는 SQL을 넣지 않았고, **적용 여부는 아직 확인되지 않았습니다.** 실행한 뒤 `information_schema.role_table_grants`와 `has_table_privilege`로 `anon`에 권한이 없는지 직접 확인합니다.
 - 다시 실행: `npm run test:notes`, `npm run test:r5`, `npm run build -- --local`
@@ -113,7 +163,7 @@
 - 로그인한 사람은 메모를 추가·수정·삭제할 수 있습니다. 화면은 로그인 토큰을 `Authorization: Bearer …` 헤더로 보냅니다.
 - 서버 함수 `api/notes/index.js`(`GET`·`POST /api/notes`)와 `api/notes/[id].js`(`GET`·`PUT`·`DELETE /api/notes/:id`)는 공통 코드 `src/notes-api.mjs`를 씁니다. 토큰이 없거나 틀리면 HTML이 아니라 JSON 오류(`401 {"error":"UNAUTHORIZED",…}`)로 거부합니다.
 - 토큰 확인은 시작 틀의 `src/verify-login.mjs`(수정하지 않음)로 합니다. 새 메모의 `owner_id`는 브라우저가 보낸 값이 아니라 **서버가 확인한 사용자 id**로 채웁니다. 요청 본문의 `owner_id`·`userId`·`role` 같은 값은 무시합니다.
-- 로그인 발급자 정보는 `aleph.config.json`의 `identityProvider`(발급자 주소, audience, 공개 키 목록 주소)에 있고 비밀값은 없습니다. 허용 경로는 `allowedRoutes`(`/api/notes`, `/api/notes/:id`)입니다. 빌드가 만드는 `/aleph.json`에도 두 값이 들어가며, 발급자가 `SUPABASE_URL`과 같은 프로젝트를 가리키지 않으면 빌드가 실패합니다.
+- 로그인 발급자 정보는 `aleph.config.json`의 `identityProvider`(발급자 주소, audience, 공개 키 목록 주소)에 있고 비밀값은 없습니다. 허용 경로는 `allowedRoutes`(3단계 시점에는 `/api/notes`, `/api/notes/:id`, 8단계에서 메서드를 붙인 형식으로 바뀜)입니다. 빌드가 만드는 `/aleph.json`에도 두 값이 들어가며, 발급자가 `SUPABASE_URL`과 같은 프로젝트를 가리키지 않으면 빌드가 실패합니다.
 - 환경변수(Vercel Project Settings > Environment Variables): `SUPABASE_URL`(경로 없는 `https://….supabase.co`), `SUPABASE_PUBLISHABLE_KEY`(공개 키), `SUPABASE_SECRET_KEY`(서버 전용, 브라우저에 절대 노출하지 않음). 넣거나 바꾼 뒤에는 다시 배포합니다.
 - 시험 계정: Supabase 대시보드 Authentication > Users > Add user로 직접 만듭니다(비밀번호는 화면에서만 입력하고 어디에도 적지 않습니다).
 - 다시 실행: `npm run test:notes`, `npm run test:r5`, `npm run build -- --local`

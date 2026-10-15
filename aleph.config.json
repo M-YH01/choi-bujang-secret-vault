@@ -1,5 +1,5 @@
 {
-  "step": 7,
+  "step": 8,
   "repoUrl": "https://github.com/M-YH01/choi-bujang-secret-vault",
   "publicAppUrl": "https://choi-bujang-secret-vault-chi-one.vercel.app",
   "sampleMarker": "SAMPLE_NOTE_1",
@@ -10,8 +10,9 @@
     "jwksUrl": "https://eftdemcplusaetgvsttq.supabase.co/auth/v1/.well-known/jwks.json"
   },
   "allowedRoutes": [
-    "/api/notes",
-    "/api/notes/:id"
+    "GET /api/notes/:id",
+    "PUT /api/notes/:id",
+    "DELETE /api/notes/:id"
   ],
   "originalApiUrl": "https://eftdemcplusaetgvsttq.supabase.co/rest/v1/study_notes",
   "restoreRoute": null

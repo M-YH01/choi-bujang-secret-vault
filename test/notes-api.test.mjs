@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import { createClient } from '@supabase/supabase-js';
 import { createNotesApi, createSupabaseStore } from '../src/notes-api.mjs';
 import { createLoginVerifier } from '../src/verify-login.mjs';
+import { parseResourceId, resourceId } from '../src/resources.mjs';
 import config from '../aleph.config.json' with { type: 'json' };
 
 const root = resolve(import.meta.dirname, '..');
@@ -42,6 +43,7 @@ function memoryStore() {
     async list(userId) {
       return [...rows.values()].filter((r) => r.ownerId === userId).map(view);
     },
+    async ownerOf(id) { const r = rows.get(id); return r ? { ownerId: r.ownerId } : null; },
     async get(id, userId) { const r = rows.get(id); return r && r.ownerId === userId ? view(r) : null; },
     async create({ id, ownerId, title, content }) {
       if (rows.has(id)) { const e = new Error('dup'); e.code = 'CONFLICT'; throw e; }
@@ -296,12 +298,12 @@ test('the API turns a store failure into a generic 502 without secrets', async (
   } finally { console.error = saved; }
 });
 
-test('aleph.config.json is ready for step 7 and the login helper accepts it', async () => {
-  assert.equal(config.step, 7);
+test('aleph.config.json is ready for step 8 and the login helper accepts it', async () => {
+  assert.equal(config.step, 8);
   assert.deepEqual(Object.keys(config.identityProvider).sort(), ['audience', 'issuer', 'jwksUrl']);
   assert.equal(config.identityProvider.jwksUrl, `${config.identityProvider.issuer}/.well-known/jwks.json`);
   assert.ok(config.identityProvider.issuer.endsWith('.supabase.co/auth/v1'));
-  assert.deepEqual([...config.allowedRoutes].sort(), ['/api/notes', '/api/notes/:id']);
+  assert.deepEqual([...config.allowedRoutes].sort(), ['DELETE /api/notes/:id', 'GET /api/notes/:id', 'PUT /api/notes/:id']);
   // 도우미가 설정을 받아들이는지만 봅니다(가짜 서버 키, 네트워크 요청 없음).
   const verifyLogin = createLoginVerifier({ config, supabaseSecretKey: FAKE_KEY });
   assert.equal(await verifyLogin(undefined), null);
@@ -334,4 +336,81 @@ test('browser files hold no memos or key names, use the official SDK and call th
   assert.match(page, /'\/api\/notes'/u);
   assert.match(page, /Authorization/u);
   assert.equal(page.includes("fetch('/data.json'"), false);
+});
+
+// ---- 8단계: 구역별 자원 ID와 API의 소유자 재대조 ---------------------------------
+async function withWarnings(run) {
+  const original = console.warn;
+  const logged = [];
+  console.warn = (...args) => logged.push(args.map(String).join(' '));
+  try { return await run(logged); } finally { console.warn = original; }
+}
+
+test('resource ids separate the note, notice and instructor zones', () => {
+  assert.equal(resourceId('note', A), `note:${A}`);
+  assert.equal(resourceId('notice', 'week-3'), 'notice:week-3');
+  assert.equal(resourceId('instructor', 'plan_1'), 'instructor:plan_1');
+  assert.notEqual(resourceId('note', 'x1'), resourceId('notice', 'x1'));
+  assert.deepEqual(parseResourceId(`note:${A}`), { zone: 'note', id: A });
+  for (const bad of ['', 'note', 'note:', ':x', 'memo:x', 'note:a:b', 'note:a b', 'note:a/b', 5, null]) {
+    assert.equal(parseResourceId(bad), null, String(bad));
+  }
+  assert.throws(() => resourceId('memo', 'x'), /invalid_resource/u);
+  assert.throws(() => resourceId('note', 'a/b'), /invalid_resource/u);
+});
+
+test('item responses carry the note resource id and the body shape is unchanged', async () => {
+  const { api } = setup();
+  const { body: { id } } = await call(api.collection, req('POST', { token: 'tokA', body: { title: 't', body: 'b' } }));
+  const read = await call(api.item, req('GET', { token: 'tokA', id }));
+  assert.equal(read.headers['X-Resource-Id'], `note:${id}`);
+  assert.deepEqual(read.body, { id, title: 't', body: 'b' });
+  const put = await call(api.item, req('PUT', { token: 'tokA', id, body: { title: 'u', body: 'v' } }));
+  assert.equal(put.headers['X-Resource-Id'], `note:${id}`);
+  assert.deepEqual(put.body, { id, title: 'u', body: 'v' });
+});
+
+test('direct API requests cannot reach another owner, an ownerless row or a made-up role', async () => {
+  const { store, api } = setup();
+  const { body: { id } } = await call(api.collection, req('POST', { token: 'tokA', body: { title: 'A만', body: '비공개' } }));
+  await withWarnings(async (warnings) => {
+    for (const [method, init] of [['GET', {}], ['PUT', { body: { title: 'x', body: 'y', role: 'instructor' } }], ['DELETE', {}]]) {
+      // 본문·헤더의 role, 화면 메뉴 값은 읽지 않습니다.
+      const res = await call(api.item, req(method, { token: 'tokB', id, headers: { 'x-role': 'instructor', 'x-menu': 'instructor' }, ...init }));
+      assert.equal(res.statusCode, 404, method);
+      assert.equal(res.body.error, 'NOT_FOUND');
+      assert.equal('X-Resource-Id' in res.headers, false, '거부 응답에는 자원 ID를 붙이지 않습니다.');
+      assert.equal(JSON.stringify(res.body).includes('비공개'), false);
+    }
+    // 주인이 없는 행과 없는 번호도 같은 404입니다.
+    const ownerless = await call(api.item, req('GET', { token: 'tokA', id: OTHER_ID }));
+    const missing = await call(api.item, req('GET', { token: 'tokA', id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' }));
+    assert.equal(ownerless.statusCode, 404);
+    assert.deepEqual(ownerless.body, missing.body);
+    // 거부 사유는 구역과 짧은 코드만 남기고 번호·토큰·본문은 남기지 않습니다.
+    assert.deepEqual(warnings.slice(0, 3), ['notes_denied note not_owner', 'notes_denied note not_owner', 'notes_denied note not_owner']);
+    assert.ok(warnings.includes('notes_denied note not_owner') && warnings.includes('notes_denied note not_found'));
+    for (const line of warnings) assert.equal(/[0-9a-f]{8}-|tok[AB]|비공개/u.test(line), false, line);
+  });
+  assert.equal(store.rows.get(id).title, 'A만');
+  assert.equal(store.rows.get(OTHER_ID).ownerId, null);
+});
+
+test('the store re-reads the stored owner without reading note text', async () => {
+  let seen;
+  await withFetch(async (input) => {
+    seen = decodeURIComponent(String(input?.url ?? input));
+    return jsonResponse([{ id: A, owner_id: B }]);
+  }, async () => {
+    const owner = await storeFor().ownerOf(A);
+    assert.deepEqual(owner, { ownerId: B });
+    assert.ok(seen.includes('select=id,owner_id'), seen);
+    assert.equal(seen.includes('content'), false);
+  });
+  await withFetch(async () => jsonResponse([{ id: A, owner_id: null }]), async () => {
+    assert.deepEqual(await storeFor().ownerOf(A), { ownerId: null });
+  });
+  await withFetch(async () => jsonResponse([]), async () => {
+    assert.equal(await storeFor().ownerOf(A), null);
+  });
 });
