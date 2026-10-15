@@ -37,12 +37,19 @@
     .offline { margin: 16px 0; padding: 12px 16px; border-radius: 12px; border: 1px solid #d0a95a; color: #fff1cf; background: #5a43142e; }
     .small { font-size: 14px; color: #9db2cc; }
     .code { font-family: ui-monospace, monospace; font-size: 22px; letter-spacing: .12em; color: #ecf4ff; }
+    .ops-card { border: 1px solid #51667c; border-radius: 12px; padding: 12px 16px; margin: 10px 0; background: #1a2a3d; }
+    .ops-card h3 { margin: 0 0 6px; font-size: 16px; }
+    .ops-card p { margin: 4px 0; font-size: 15px; }
+    .badge { display: inline-block; font-size: 13px; font-weight: 700; padding: 2px 8px; border-radius: 8px; margin-left: 6px; border: 1px solid #51667c; }
+    .badge.confirmed { color: #d9fff0; border-color: #4fae8b; }
+    .badge.practice { color: #fff1cf; border-color: #d0a95a; }
+    .badge.not_run { color: #ffe3e8; border-color: #d07384; }
     [hidden] { display: none !important; }
   </style>
 </head>
 <body>
   <main>
-    <div class="eyebrow">BYTE BACK · 11단계 나만의 접속 앱</div>
+    <div class="eyebrow">BYTE BACK · 12단계 탈환 작전실</div>
     <h1>BYTE BACK 자료실</h1>
     <p>아래 기록은 모두 실습을 위해 만든 가상 자료입니다. 실제 개인정보는 넣지 마세요.</p>
     <div class="notice">메모는 로그인하고, 서버가 이 기기를 승인된 기기로 확인한 뒤에만 보입니다. 앱으로 설치했다는 표시만으로는 기기 확인이 끝난 것이 아닙니다. 승인은 서버 쪽 운영자가 정합니다.</div>
@@ -98,6 +105,11 @@
       </form>
       <h2>메모 목록</h2>
       <ul id="notes" aria-live="polite"></ul>
+
+      <h2>탈환 작전실</h2>
+      <p class="small">서버가 방금 읽어 온 기록만 보여 줍니다. 화면의 문구는 통과 근거가 아니며, 수치는 <code>sql/12-ops-check.sql</code>의 서버 기록과 맞춰 봅니다. 메모 본문은 표시하지 않습니다.</p>
+      <div class="actions"><button id="ops-refresh" type="button" class="secondary">작전실 새로고침</button></div>
+      <div id="ops-view" aria-live="polite"></div>
     </section>
     <noscript><p>이 화면은 자바스크립트가 필요합니다.</p></noscript>
   </main>
@@ -251,6 +263,60 @@
       } catch (error) { handleApiError(error); }
     }
 
+    // ---- 탈환 작전실: /api/ops/summary 응답을 그대로 보여 줍니다(화면이 값을 만들어 내지 않음) ----
+    const BADGE = {
+      confirmed: ['confirmed', '서버 기록으로 확인됨'],
+      practice: ['practice', '가상 요청 연습 · 실제 판정 아님'],
+      unavailable: ['not_run', '실행하지 못함'],
+    };
+    function opsCard(title, status, lines) {
+      const card = document.createElement('div');
+      card.className = 'ops-card';
+      const h = document.createElement('h3');
+      h.textContent = title;
+      const [kind, label] = BADGE[status] ?? ['not_run', '미실행'];
+      const badge = document.createElement('span');
+      badge.className = `badge ${kind}`;
+      badge.textContent = label;
+      h.append(badge);
+      card.append(h);
+      for (const line of lines) { const p = document.createElement('p'); p.textContent = line; card.append(p); }
+      return card;
+    }
+    const pairs = (obj) => Object.entries(obj ?? {}).map(([k, v]) => `${k} ${v}건`).join(', ') || '없음';
+    function renderOps(data) {
+      const s = data.sections ?? {};
+      const cards = [
+        opsCard('판정기 규칙', s.decider?.status, s.decider?.status === 'practice'
+          ? [`규칙: ${s.decider.ruleIds.join(', ')}`, `가상 요청 ${s.decider.total}건 중 ${s.decider.passed}건 기대와 같음`]
+          : ['연습을 실행하지 못했습니다.']),
+        opsCard('탐지 사건', s.detect?.status, s.detect?.status === 'practice'
+          ? [`규칙: ${s.detect.rules.join(', ')}`, `가상 사건 ${s.detect.total}건 중 ${s.detect.passed}건 기대와 같음`]
+          : ['연습을 실행하지 못했습니다.']),
+        opsCard('회수 상태 (기기 승인)', s.revoke?.status, [
+          `승인 대기 ${s.revoke?.devices?.pending ?? 0} · 승인 ${s.revoke?.devices?.approved ?? 0} · 회수됨 ${s.revoke?.devices?.revoked ?? 0}`,
+          s.revoke?.note ?? '']),
+        opsCard('복구 버전', s.restore?.status, [
+          `비공개 사본 ${s.restore?.backups?.count ?? 0}건 · 가장 늦은 사본 ${s.restore?.backups?.latestAt ?? '없음'}`,
+          `복구·감사 기록 ${s.restore?.audit?.total ?? 0}줄${s.restore?.audit?.truncated ? ' (최근 1000줄까지만 셈)' : ''}`,
+          `종류: ${pairs(s.restore?.audit?.byAction)}`, `결과: ${pairs(s.restore?.audit?.byResult)}`]),
+        opsCard('미실행 · 미연결', 'unavailable', (data.notRun ?? []).map((n) => n.reason)),
+      ];
+      const meta = document.createElement('p');
+      meta.className = 'small';
+      meta.textContent = `요청 ID ${data.requestId} · 서버 확인 시각 ${data.generatedAt}`;
+      $('#ops-view').replaceChildren(...cards, meta);
+    }
+    async function loadOps() {
+      try {
+        renderOps(await api('/api/ops/summary'));
+      } catch (error) {
+        $('#ops-view').replaceChildren();
+        handleApiError(error);
+      }
+    }
+    $('#ops-refresh').addEventListener('click', loadOps);
+
     function showSignedOut() {
       shownUserId = null;
       deviceState = 'unknown';
@@ -258,6 +324,7 @@
       devicePanel.hidden = true;
       notesPanel.hidden = true;
       list.replaceChildren();
+      $('#ops-view').replaceChildren();
     }
 
     const DEVICE_TEXT = {
@@ -272,6 +339,7 @@
       loginPanel.hidden = true;
       notesPanel.hidden = true;
       list.replaceChildren();
+      $('#ops-view').replaceChildren();
       devicePanel.hidden = false;
       $('#device-text').textContent = DEVICE_TEXT[state] ?? DEVICE_TEXT.none;
       $('#device-code-line').hidden = !code;
@@ -292,6 +360,7 @@
           notesPanel.hidden = false;
           $('#who').textContent = `로그인한 계정: ${session.user?.email ?? '(이메일 없음)'}`;
           await loadNotes();
+          await loadOps();
           return;
         }
         showDevice(['pending', 'revoked'].includes(info?.state) ? info.state : 'none', info?.requestCode ?? null);

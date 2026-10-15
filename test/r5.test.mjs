@@ -106,7 +106,7 @@ test('step 3 identity adds the login issuer and routes, tied to the same Supabas
   assert.throws(() => deploymentIdentity(env, { ...config3, identityProvider: null }));
   assert.throws(() => deploymentIdentity(env, { ...config3, allowedRoutes: [] }));
   assert.throws(() => deploymentIdentity(env, { ...config3, allowedRoutes: ['api/notes'] }));
-  assert.throws(() => deploymentIdentity(env, { ...config3, step: 12 }));
+  assert.throws(() => deploymentIdentity(env, { ...config3, step: 13 }));
   assert.equal(deploymentIdentity(env, { ...config3, step: 4 }).step, 4);
   assert.equal('originalApiUrl' in deploymentIdentity(env, { ...config3, step: 4 }), false);
   // 발급자가 다른 프로젝트를 가리키면 거부합니다.
@@ -283,5 +283,31 @@ test('step 11 attack check adds an anonymous GET to the device status route and 
     assert.equal(JSON.stringify(call.headers).toLowerCase().includes('authorization'), false);
   } finally {
     globalThis.fetch = originalFetch;
+  }
+});
+
+test('step 12 attack check reports the matrix file honestly: missing means not run, present means its own counts', async () => {
+  const { mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } = await import('node:fs');
+  const file = new URL('../artifacts/verification-matrix.json', import.meta.url).pathname;
+  const backup = existsSync(file) ? readFileSync(file, 'utf8') : null;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (String(url).endsWith('/data.json')) return new Response(JSON.stringify({ notes: [] }), { status: 200, headers: { 'content-type': 'application/json' } });
+    if (String(url).includes('/rest/v1/')) return new Response('[]', { status: 401, headers: { 'content-type': 'application/json' } });
+    return new Response(JSON.stringify({ error: 'UNAUTHORIZED' }), { status: 401, headers: { 'content-type': 'application/json' } });
+  };
+  try {
+    if (backup !== null) rmSync(file);
+    let results = await runAttackChecks({ ...config5, step: 12 });
+    assert.match(results.find((r) => r.attackId === 'verification_matrix').observed, /미실행/u);
+    assert.match(results.find((r) => r.attackId === 'attack_41').observed, /미실행/u);
+    mkdirSync(new URL('../artifacts', import.meta.url).pathname, { recursive: true });
+    writeFileSync(file, JSON.stringify({ schema: 'aleph.verification-matrix.v1', summary: { total: 20, match: 12, mismatch: 0, notRun: 8 }, rows: [{ checkedAt: '2026-10-15T01:00:00.000Z' }] }));
+    results = await runAttackChecks({ ...config5, step: 12 });
+    assert.match(results.find((r) => r.attackId === 'verification_matrix').observed, /전체 20줄 중 기대와 같음 12, 기대와 다름 0, 미실행 8/u);
+    assert.ok(results.length <= 20);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (backup !== null) writeFileSync(file, backup); else rmSync(file, { force: true });
   }
 });

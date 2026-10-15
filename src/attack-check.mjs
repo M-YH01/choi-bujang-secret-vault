@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 // The student changes this check as each stage adds an attack to the same app.
 // Never return tokens, private keys, real names, or note bodies.
 // 실제로 보낸 요청의 결과만 기록합니다. 심판의 판정이 아닙니다.
@@ -101,6 +104,28 @@ async function anonymousDeviceStatus(app) {
       : `로그인 없는 요청이 JSON 오류로 거부되지 않음 (HTTP ${response.status})` };
 }
 
+// 12단계: npm run verify:matrix가 남긴 실측 표(artifacts/verification-matrix.json)를 읽어 요약만 적습니다.
+// 표가 없으면 미실행입니다. 이 점검은 요청을 새로 보내지 않고, 표에 없는 결과를 만들어 내지 않습니다.
+function matrixSummary() {
+  const file = join(dirname(fileURLToPath(import.meta.url)), '..', 'artifacts', 'verification-matrix.json');
+  const expected = '1~11단계 정상·금지 요청을 실제로 보내 기대 결과와 대조한 실측 표';
+  let data;
+  try { data = JSON.parse(readFileSync(file, 'utf8')); } catch {
+    return { attackId: 'verification_matrix', expected, observed: '실측 표 파일이 없어 미실행 (npm run verify:matrix를 먼저 실행하세요)' };
+  }
+  const s = data?.summary;
+  if (data?.schema !== 'aleph.verification-matrix.v1' || !s || ![s.total, s.match, s.mismatch, s.notRun].every(Number.isInteger)) {
+    return { attackId: 'verification_matrix', expected, observed: '실측 표 형식을 읽지 못해 미실행으로 처리' };
+  }
+  const last = data.rows?.map((r) => r.checkedAt).filter(Boolean).sort().at(-1) ?? '없음';
+  return { attackId: 'verification_matrix', expected,
+    observed: `전체 ${s.total}줄 중 기대와 같음 ${s.match}, 기대와 다름 ${s.mismatch}, 미실행 ${s.notRun} (마지막 확인 ${last})` };
+}
+
+function attack41() {
+  return { attackId: 'attack_41', expected: '41종 총공세 방어', observed: '41종 총공세는 이 저장소에서 실행하지 않아 미실행 (통과로 세지 않음)' };
+}
+
 // 5단계: 공개 키로 원본 자료 주소를 직접 불러도 메모가 나오지 않는가.
 // 공개 키는 배포가 공개한 /aleph.json에서 읽어 요청 헤더에만 쓰고, 키와 응답 본문은 기록하지 않습니다.
 async function directOriginalRead(config, app) {
@@ -138,7 +163,7 @@ async function directOriginalRead(config, app) {
 }
 
 export async function runAttackChecks(config) {
-  if (![1, 3, 4, 5, 6, 7, 8, 9, 10, 11].includes(config.step)) {
+  if (![1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].includes(config.step)) {
     throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
   }
   const app = appOrigin(config);
@@ -153,5 +178,6 @@ export async function runAttackChecks(config) {
   if (config.step >= 10) results.push(await anonymousRestore(app));
   // 승인된 기기에서의 정상 열림과 승인 전 거부(로그인 토큰·기기 쿠키 필요)는 이 점검에서 실행하지 않습니다(미실행).
   if (config.step >= 11) results.push(await anonymousDeviceStatus(app));
+  if (config.step >= 12) results.push(matrixSummary(), attack41());
   return results;
 }
