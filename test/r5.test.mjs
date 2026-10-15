@@ -286,28 +286,32 @@ test('step 11 attack check adds an anonymous GET to the device status route and 
   }
 });
 
-test('step 12 attack check reports the matrix file honestly: missing means not run, present means its own counts', async () => {
-  const { mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } = await import('node:fs');
-  const file = new URL('../artifacts/verification-matrix.json', import.meta.url).pathname;
-  const backup = existsSync(file) ? readFileSync(file, 'utf8') : null;
+test('step 12 attack check sends one anonymous request and marks everything it did not send as not run', async () => {
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
+  const calls = [];
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: String(url), method: init.method ?? 'GET', headers: init.headers ?? {} });
     if (String(url).endsWith('/data.json')) return new Response(JSON.stringify({ notes: [] }), { status: 200, headers: { 'content-type': 'application/json' } });
     if (String(url).includes('/rest/v1/')) return new Response('[]', { status: 401, headers: { 'content-type': 'application/json' } });
     return new Response(JSON.stringify({ error: 'UNAUTHORIZED' }), { status: 401, headers: { 'content-type': 'application/json' } });
   };
   try {
-    if (backup !== null) rmSync(file);
-    let results = await runAttackChecks({ ...config5, step: 12 });
-    assert.match(results.find((r) => r.attackId === 'verification_matrix').observed, /미실행/u);
-    assert.match(results.find((r) => r.attackId === 'attack_41').observed, /미실행/u);
-    mkdirSync(new URL('../artifacts', import.meta.url).pathname, { recursive: true });
-    writeFileSync(file, JSON.stringify({ schema: 'aleph.verification-matrix.v1', summary: { total: 20, match: 12, mismatch: 0, notRun: 8 }, rows: [{ checkedAt: '2026-10-15T01:00:00.000Z' }] }));
-    results = await runAttackChecks({ ...config5, step: 12 });
-    assert.match(results.find((r) => r.attackId === 'verification_matrix').observed, /전체 20줄 중 기대와 같음 12, 기대와 다름 0, 미실행 8/u);
+    const results = await runAttackChecks({ ...config5, step: 12 });
+    const ops = results.find((r) => r.attackId === 'anonymous_ops_summary');
+    assert.match(ops.observed, /JSON 오류로 거부됨 \(HTTP 401\)/u);
+    assert.equal(JSON.stringify(calls.find((c) => c.url.endsWith('/api/ops/summary')).headers).toLowerCase().includes('authorization'), false);
+    for (const id of ['cross_user_note_read', 'verification_matrix', 'attack_41']) {
+      const row = results.find((r) => r.attackId === id);
+      assert.ok(row.observed.startsWith('미실행'), id);
+      assert.equal(/HTTP|\d+줄/u.test(row.observed), false, `${id}에 보내지 않은 요청의 상태나 수치를 적으면 안 됩니다.`);
+    }
+    // 요청을 보낸 줄에는 실제 HTTP 상태가 있어야 합니다.
+    for (const row of results.filter((r) => !r.observed.startsWith('미실행') && r.attackId !== 'direct_original_read')) {
+      assert.match(row.observed, /HTTP \d{3}|메모 ?가 없|없음/u, row.attackId);
+    }
     assert.ok(results.length <= 20);
+    assert.equal(new Set(results.map((r) => r.attackId)).size, results.length);
   } finally {
     globalThis.fetch = originalFetch;
-    if (backup !== null) writeFileSync(file, backup); else rmSync(file, { force: true });
   }
 });
