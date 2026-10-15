@@ -298,8 +298,8 @@ test('the API turns a store failure into a generic 502 without secrets', async (
   } finally { console.error = saved; }
 });
 
-test('aleph.config.json is ready for step 9 and the login helper accepts it', async () => {
-  assert.equal(config.step, 9);
+test('aleph.config.json is ready for step 10 and the login helper accepts it', async () => {
+  assert.equal(config.step, 10);
   assert.deepEqual(Object.keys(config.identityProvider).sort(), ['audience', 'issuer', 'jwksUrl']);
   assert.equal(config.identityProvider.jwksUrl, `${config.identityProvider.issuer}/.well-known/jwks.json`);
   assert.ok(config.identityProvider.issuer.endsWith('.supabase.co/auth/v1'));

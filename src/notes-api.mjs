@@ -80,11 +80,40 @@ export function createSupabaseStore(client) {
 }
 
 // ---- 응답 도우미 -----------------------------------------------------------
-function send(response, status, payload) {
+export function send(response, status, payload) {
   response.setHeader('Cache-Control', 'no-store');
   return response.status(status).json(payload);
 }
-const fail = (response, status, error, message) => send(response, status, { error, message });
+export const fail = (response, status, error, message) => send(response, status, { error, message });
+export { storeError, UUID };
+
+// 로그인 확인: 메모 API와 복원 API가 같은 코드를 씁니다. 헤더가 없으면 확인기를 부르지 않고 401입니다.
+export function createAuthenticator(verify) {
+  return async function authenticate(request, response) {
+    const authorization = request.headers?.authorization;
+    if (typeof authorization !== 'string' || !authorization) {
+      response.setHeader('WWW-Authenticate', 'Bearer');
+      fail(response, 401, 'UNAUTHORIZED', '로그인이 필요합니다.');
+      return null;
+    }
+    let identity;
+    try {
+      identity = await verify(authorization);
+    } catch {
+      console.error('login_verifier_unavailable');
+      fail(response, 500, 'NOT_CONFIGURED', '로그인 검사를 준비하지 못했습니다.');
+      return null;
+    }
+    if (!identity || typeof identity.userId !== 'string' || !UUID.test(identity.userId)) {
+      response.setHeader('WWW-Authenticate', 'Bearer');
+      fail(response, 401, 'UNAUTHORIZED', '로그인 정보가 올바르지 않습니다.');
+      return null;
+    }
+    return identity;
+  };
+}
+
+export { defaultVerify };
 
 function readJsonBody(request) {
   let body = request.body;
@@ -106,28 +135,7 @@ function readFields(request) {
 
 // ---- API ------------------------------------------------------------------
 export function createNotesApi({ verify, getStore }) {
-  async function authenticate(request, response) {
-    const authorization = request.headers?.authorization;
-    if (typeof authorization !== 'string' || !authorization) {
-      response.setHeader('WWW-Authenticate', 'Bearer');
-      fail(response, 401, 'UNAUTHORIZED', '로그인이 필요합니다.');
-      return null;
-    }
-    let identity;
-    try {
-      identity = await verify(authorization);
-    } catch {
-      console.error('login_verifier_unavailable');
-      fail(response, 500, 'NOT_CONFIGURED', '로그인 검사를 준비하지 못했습니다.');
-      return null;
-    }
-    if (!identity || typeof identity.userId !== 'string' || !UUID.test(identity.userId)) {
-      response.setHeader('WWW-Authenticate', 'Bearer');
-      fail(response, 401, 'UNAUTHORIZED', '로그인 정보가 올바르지 않습니다.');
-      return null;
-    }
-    return identity;
-  }
+  const authenticate = createAuthenticator(verify);
 
   async function run(response, work) {
     try {

@@ -9,11 +9,17 @@
     "test:notes": "node --test test/notes-api.test.mjs",
     "test:decider": "node --test test/decider.test.mjs",
     "test:detect": "node --test test/detect.test.mjs",
+    "test:restore": "node --test test/restore-api.test.mjs",
     "bundle": "node scripts/bundle.mjs",
     "decider:test": "node scripts/decider-test.mjs",
     "detect:test": "node scripts/detect-test.mjs",
     "fixture:7": "node scripts/fixture-7.mjs",
-    "xdr:run": "node scripts/xdr-run.mjs"
+    "xdr:run": "node scripts/xdr-run.mjs",
+    "test:policy": "node --test test/policy.test.mjs",
+    "policy:snapshot": "node scripts/policy.mjs snapshot",
+    "policy:diff": "node scripts/policy.mjs diff",
+    "policy:restore": "node scripts/policy.mjs restore",
+    "check:all": "node --test test/*.test.mjs && node scripts/decider-test.mjs && node scripts/detect-test.mjs && node scripts/build-public.mjs --local"
   },
   "engines": {
     "node": ">=22"

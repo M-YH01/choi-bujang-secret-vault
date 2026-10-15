@@ -72,6 +72,21 @@ async function anonymousNoteItem(app) {
       : `로그인 없는 요청이 JSON 오류로 거부되지 않음 (HTTP ${response.status})` };
 }
 
+// 10단계: 로그인 없이 복원 경로(POST /api/restore/notes/:id)를 불러도 JSON 오류로 거부되는가.
+// 번호는 존재하지 않는 시험용 값이고 토큰은 보내지 않으므로 아무 메모도 바뀌지 않습니다.
+async function anonymousRestore(app) {
+  const response = await fetch(new URL('/api/restore/notes/00000000-0000-4000-8000-000000000000', app), {
+    method: 'POST', redirect: 'error', signal: AbortSignal.timeout(10000), headers: { Accept: 'application/json' },
+  });
+  let hasError = false;
+  try { hasError = typeof (await response.json())?.error === 'string'; } catch { /* 본문이 JSON이 아니면 거부로 인정하지 않습니다. */ }
+  const isJson = (response.headers.get('content-type') ?? '').includes('json');
+  const rejected = (response.status === 401 || response.status === 403) && isJson && hasError;
+  return { attackId: 'anonymous_restore', expected: '로그인 없이 복원 경로로 메모 되살리기',
+    observed: rejected ? `로그인 없는 요청이 JSON 오류로 거부됨 (HTTP ${response.status})`
+      : `로그인 없는 요청이 JSON 오류로 거부되지 않음 (HTTP ${response.status})` };
+}
+
 // 5단계: 공개 키로 원본 자료 주소를 직접 불러도 메모가 나오지 않는가.
 // 공개 키는 배포가 공개한 /aleph.json에서 읽어 요청 헤더에만 쓰고, 키와 응답 본문은 기록하지 않습니다.
 async function directOriginalRead(config, app) {
@@ -109,7 +124,7 @@ async function directOriginalRead(config, app) {
 }
 
 export async function runAttackChecks(config) {
-  if (![1, 3, 4, 5, 6, 7, 8, 9].includes(config.step)) {
+  if (![1, 3, 4, 5, 6, 7, 8, 9, 10].includes(config.step)) {
     throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
   }
   const app = appOrigin(config);
@@ -121,5 +136,6 @@ export async function runAttackChecks(config) {
     await anonymousNoteList(app)];
   if (config.step >= 4) results.push(await anonymousNoteItem(app));
   if (config.step >= 5) results.push(await directOriginalRead(config, app));
+  if (config.step >= 10) results.push(await anonymousRestore(app));
   return results;
 }

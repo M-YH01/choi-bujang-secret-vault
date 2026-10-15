@@ -1,5 +1,5 @@
 {
-  "step": 9,
+  "step": 10,
   "repoUrl": "https://github.com/M-YH01/choi-bujang-secret-vault",
   "publicAppUrl": "https://choi-bujang-secret-vault-chi-one.vercel.app",
   "sampleMarker": "SAMPLE_NOTE_1",
@@ -15,5 +15,5 @@
     "DELETE /api/notes/:id"
   ],
   "originalApiUrl": "https://eftdemcplusaetgvsttq.supabase.co/rest/v1/study_notes",
-  "restoreRoute": null
+  "restoreRoute": "POST /api/restore/notes/:id"
 }

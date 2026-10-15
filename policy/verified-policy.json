@@ -1,0 +1,117 @@
+{
+  "schema": "aleph.policy-snapshot.v1",
+  "version": "80698040c1f8",
+  "digest": "80698040c1f85f7d69fa7a70832de4d52da6848fd82e013aaebeb4c7ba7088df",
+  "policy": {
+    "ruleIds": [
+      "device_registered",
+      "resource_zone",
+      "step_up_required"
+    ],
+    "allowedRoutes": [
+      "GET /api/notes/:id",
+      "PUT /api/notes/:id",
+      "DELETE /api/notes/:id"
+    ],
+    "files": {
+      "src/decider.mjs": "259b73ad863e3efc268a55852e513136388af8c9b7ca1f21ce77439ee26c043f",
+      "src/detect.mjs": "0d82d372ca100e90967c2f7a6f8afe7f1bd7aa563667f83508aea71e51558b73"
+    },
+    "probes": {
+      "decide: 노트 GET 허용": {
+        "decision": "allow",
+        "reasonCode": "approved",
+        "ruleIds": [
+          "device_registered",
+          "resource_zone"
+        ]
+      },
+      "decide: 노트 PUT 허용": {
+        "decision": "allow",
+        "reasonCode": "approved",
+        "ruleIds": [
+          "device_registered",
+          "resource_zone"
+        ]
+      },
+      "decide: 노트 DELETE 허용": {
+        "decision": "allow",
+        "reasonCode": "approved",
+        "ruleIds": [
+          "device_registered",
+          "resource_zone"
+        ]
+      },
+      "decide: 노트 POST 거부": {
+        "decision": "deny",
+        "reasonCode": "resource_not_allowed",
+        "ruleIds": [
+          "resource_zone"
+        ]
+      },
+      "decide: 공지 GET 허용": {
+        "decision": "allow",
+        "reasonCode": "approved",
+        "ruleIds": [
+          "device_registered",
+          "resource_zone"
+        ]
+      },
+      "decide: 공지 PUT 거부": {
+        "decision": "deny",
+        "reasonCode": "resource_not_allowed",
+        "ruleIds": [
+          "resource_zone"
+        ]
+      },
+      "decide: 강사 영역 거부": {
+        "decision": "deny",
+        "reasonCode": "resource_not_allowed",
+        "ruleIds": [
+          "resource_zone"
+        ]
+      },
+      "decide: 미등록 기기 거부": {
+        "decision": "deny",
+        "reasonCode": "device_not_registered",
+        "ruleIds": [
+          "device_registered"
+        ]
+      },
+      "decide: 복합 이상 재확인": {
+        "decision": "step_up",
+        "reasonCode": "step_up_required",
+        "ruleIds": [
+          "step_up_required"
+        ]
+      },
+      "decide: 복합 이상 확인 완료": {
+        "decision": "allow",
+        "reasonCode": "approved",
+        "ruleIds": [
+          "device_registered",
+          "resource_zone",
+          "step_up_required"
+        ]
+      },
+      "detect: 조회 120건 관찰": {
+        "action": "observe"
+      },
+      "detect: 조회 121건 회수 제안": {
+        "action": "propose_revocation",
+        "reasonCode": "burst_read",
+        "subject": "learner_fixture"
+      }
+    }
+  },
+  "files": {
+    "src/decider.mjs": {
+      "sha256": "259b73ad863e3efc268a55852e513136388af8c9b7ca1f21ce77439ee26c043f",
+      "content": "// ALEPH SDP 엔진이 확인한 요청만 받는 학생 판정기입니다. (docs/DECIDER_REQUEST.md 계약 v1)\n// 규칙은 단계마다 하나씩 더합니다.\n//   6단계 device_registered : 등록된 기기에서 온 요청만 허용합니다.\n//   7단계 step_up_required  : 평소와 다른 시각·네트워크에서 자료를 갑자기 많이 읽으면 다시 확인합니다.\n//   8단계 resource_zone     : 서비스와 정확한 경로 모양으로 구역을 나누고, 허용 목록 밖은 모두 거부합니다.\n//\n// 읽는 요청 항목은 requestId, deviceRegistered, service, method, route, path, signals, recentEvents, stepUp뿐입니다.\n// 쿼리(queryLength, querySha256)로 기능을 고르지 않으므로 읽지 않습니다.\n// 브라우저가 보낸 userId, role, device, identity, geo, 헤더, 토큰은 읽지도 믿지도 않습니다.\n// 계약에 없는 이름을 만들어 쓰지 마세요.\nexport const RULE_IDS = Object.freeze(['device_registered', 'resource_zone', 'step_up_required']);\n\n// ---- 입력 검사 ------------------------------------------------------------\n// 엔진이 검증해 준 값만 근거로 삼습니다. 없거나 모양이 맞지 않거나 출처가 불명확하면\n// \"정상값\"으로 채우지 않고 그 근거를 아예 쓰지 않습니다(= 이상 신호로 세지 않음).\n// deviceId·subjectId·route 같은 항목은 이번 규칙에 쓰지 않습니다.\n\n// 심판이 보낸 가상 접속 사건(source: judge_fixture)만 읽습니다. 현재 실제 경로의 source는 \"none\"이라\n// 실제 접속은 이 규칙에 걸리지 않고, judge_fixture 값도 실제 위치 증거로 취급하지 않습니다.\n// region은 읽지 않습니다: 지역 하나만으로는 차단하거나 다시 확인을 요구하지 않습니다.\nfunction virtualSignals(request) {\n  const signals = request?.signals;\n  if (!signals || typeof signals !== 'object' || Array.isArray(signals)) return null;\n  if (signals.source !== 'judge_fixture') return null;\n  const { network, hour } = signals;\n  if (typeof network !== 'string' || !Number.isInteger(hour) || hour < 0 || hour > 23) return null;\n  return { network, hour };\n}\n\n// 최근 5분 안의 risk_signal 사건 횟수 합계. 엔진이 준 배열(최대 12건)에서 모양이 맞는 항목만 셉니다.\nconst BURST_WINDOW_SECONDS = 300;\nfunction recentBurstCount(request) {\n  const events = request?.recentEvents;\n  if (!Array.isArray(events)) return 0;\n  let total = 0;\n  for (const event of events.slice(0, 12)) {\n    if (event && typeof event === 'object' && event.kind === 'risk_signal'\n        && Number.isInteger(event.ageSeconds) && event.ageSeconds >= 0 && event.ageSeconds <= BURST_WINDOW_SECONDS\n        && Number.isInteger(event.count) && event.count > 0) total += event.count;\n  }\n  return total;\n}\n\n// 엔진이 확인한 재확인 결과: verified가 정확히 true이고 나이가 0~900초일 때만 인정합니다.\nfunction stepUpDone(request) {\n  const stepUp = request?.stepUp;\n  return Boolean(stepUp) && stepUp.verified === true\n    && Number.isInteger(stepUp.authAgeSeconds) && stepUp.authAgeSeconds >= 0 && stepUp.authAgeSeconds <= 900;\n}\n\n// 세 가지가 모두 겹칠 때만 이상으로 봅니다: 평소 없는 시각(0~5시) + 처음 보는 네트워크 + 짧은 시간의 많은 읽기.\nconst UNUSUAL_HOURS = (hour) => hour >= 0 && hour <= 5;\nconst BURST_THRESHOLD = 10;\nfunction isCompositeAnomaly(request) {\n  const signals = virtualSignals(request);\n  return Boolean(signals) && UNUSUAL_HOURS(signals.hour) && signals.network === 'unusual'\n    && recentBurstCount(request) >= BURST_THRESHOLD;\n}\n\n// ---- 8단계: 구역 규칙 -------------------------------------------------------\n// 구역(서비스)마다 허용하는 \"메서드 + 경로 모양\" 목록입니다. 목록에 없으면 거부합니다.\n//  - notes: 자료 ID 하나를 고르는 경로만. ID 없는 전체 목록(GET /notes)과 추가(POST /notes)는 거부합니다.\n//    메모 주인 비교는 판정기가 아니라 자료 API(src/notes-api.mjs)에서 합니다.\n//  - announcements(반 공지): 읽기(GET)만. 쓰기(POST·PUT·PATCH·DELETE)는 누구에게나 거부합니다.\n//    강사의 공지 수정은 판정기가 아니라 서버의 관리 경로에서 처리합니다(요청에 역할이 없습니다).\n//  - instructor(강사 자료): 판정기에서는 모두 거부합니다.\n// 서비스 이름 announcements·instructor는 계약 문서에 정의돼 있지 않아 이 저장소가 정한 값입니다.\nconst ZONE_RULES = Object.freeze({\n  notes: [['GET', [':id']], ['PUT', [':id']], ['DELETE', [':id']]],\n  announcements: [['GET', []], ['GET', [':id']]],\n  instructor: [],\n});\nconst ROUTE_SHAPE = /^(GET|POST|PUT|PATCH|DELETE) (\\/[A-Za-z0-9_:/-]{1,120})$/u;\n\n// 맨 앞의 /api 구간은 한 번만 떼어 내고, 빈 구간(//, 끝 슬래시)이 있으면 거부합니다.\nfunction splitSegments(text) {\n  const segments = text.split('/').slice(1);\n  if (segments[0] === 'api') segments.shift();\n  return segments.length > 0 && segments.every((part) => part !== '') ? segments : null;\n}\n\n// 자료 ID 자리는 UUID로 좁히지 않습니다(심판의 가상 요청 ID는 UUID가 아닐 수 있음).\n// 다만 한 구간이어야 하고, ., .., 쿼리·해시·공백·제어 문자·인코딩된 슬래시는 거부합니다.\nfunction plainIdSegment(part) {\n  return typeof part === 'string' && part.length >= 1 && part.length <= 128\n    && part !== '.' && part !== '..' && !/[?#\\\\\\s\\u0000-\\u001f\\u007f]|%2f|%5c/iu.test(part);\n}\n\nfunction zoneAllows(request) {\n  const { service, method, route, path } = request ?? {};\n  const shape = typeof route === 'string' ? ROUTE_SHAPE.exec(route) : null;\n  if (!shape || typeof service !== 'string' || typeof path !== 'string' || method !== shape[1]) return false;\n  const routeSegments = splitSegments(shape[2]);\n  const pathSegments = path.startsWith('/') ? splitSegments(path) : null;\n  if (!routeSegments || !pathSegments || routeSegments.length !== pathSegments.length) return false;\n  if (routeSegments[0] !== service || pathSegments[0] !== service) return false;\n  if (!Object.hasOwn(ZONE_RULES, service)) return false;\n  const rest = routeSegments.slice(1);\n  const allowed = ZONE_RULES[service].some(([allowedMethod, allowedRest]) => allowedMethod === method\n    && allowedRest.length === rest.length && allowedRest.every((part, index) => part === rest[index]));\n  if (!allowed) return false;\n  return rest.every((part, index) => (part === ':id'\n    ? plainIdSegment(pathSegments[index + 1]) : pathSegments[index + 1] === part));\n}\n\nconst respond = (request, decision, reasonCode, ruleIds) => ({\n  schema: 'aleph.decision.v1',\n  requestId: request?.requestId,\n  decision,\n  reasonCode,\n  ruleIds,\n});\n\nexport async function decide(request) {\n  // 6단계: 기기 등록 여부가 정확히 true일 때만 다음 규칙으로 갑니다. 그 밖의 모양은 모두 거부입니다.\n  if (request?.deviceRegistered !== true) {\n    return respond(request, 'deny', 'device_not_registered', ['device_registered']);\n  }\n  // 8단계: 허용 목록에 없는 구역·메서드·경로는 거부합니다(모르는 경로도 거부).\n  if (!zoneAllows(request)) {\n    return respond(request, 'deny', 'resource_not_allowed', ['resource_zone']);\n  }\n  // 7단계: 복합 이상 접속은 다시 확인합니다. 확인이 끝난 요청은 허용합니다.\n  if (isCompositeAnomaly(request)) {\n    return stepUpDone(request)\n      ? respond(request, 'allow', 'approved', ['device_registered', 'resource_zone', 'step_up_required'])\n      : respond(request, 'step_up', 'step_up_required', ['step_up_required']);\n  }\n  return respond(request, 'allow', 'approved', ['device_registered', 'resource_zone']);\n}\n"
+    },
+    "src/detect.mjs": {
+      "sha256": "0d82d372ca100e90967c2f7a6f8afe7f1bd7aa563667f83508aea71e51558b73",
+      "content": "// 9단계 탐지 함수입니다. docs/DETECT_EVENTS.md의 사건 계약 그대로입니다.\n// 사건마다 읽는 값은 at(시각), method(요청 종류), identity.sub(가명 사용자) 세 개뿐입니다.\n// 네트워크·기기·지역·헤더·메모 내용·토큰·실명은 읽지도 저장하지도 출력하지도 않습니다.\n// 이 함수는 회수를 \"제안\"만 합니다. 회수 API를 부르거나 기기 권한을 바꾸지 않습니다.\n// 반 엔진이 검증한 사건만 전달해야 하며, 브라우저가 보낸 사용자 번호는 받지 않습니다.\nexport const BURST_RULE = 'burst_read';\n\nconst WINDOW_MS = 10 * 60 * 1000; // 10분 구간. 첫 사건과 마지막 사건의 시각 차가 10분 이하이면 같은 구간입니다.\nconst LIMIT = 120;                // 구간 안 GET이 120건을 \"넘을\" 때만 의심입니다(정확히 120건은 의심 아님).\nconst MAX_SUB_LENGTH = 128;\n\n// ---- 입력 처리 --------------------------------------------------------------\n// 세 값이 모두 올바른 GET 사건만 근거로 삼습니다. 값이 없거나 모양이 틀린 사건은\n// 정상값으로 채우지 않고 건너뜁니다(세지 않음). 사건 전체를 복사해 두지 않습니다.\nfunction readEvent(event) {\n  if (event === null || typeof event !== 'object') return null;\n  const { at, method } = event;\n  const sub = event.identity?.sub;\n  if (method !== 'GET') return null;\n  if (typeof sub !== 'string' || sub.length === 0 || sub.length > MAX_SUB_LENGTH) return null;\n  if (typeof at !== 'string') return null;\n  const time = Date.parse(at);\n  if (!Number.isFinite(time)) return null;\n  return { sub, time };\n}\n\n// 같은 가명 사용자의 GET 시각만 모읍니다. 다른 사용자의 사건은 합치지 않습니다.\nfunction readTimesBySubject(events) {\n  const bySubject = new Map();\n  for (const event of events) {\n    const read = readEvent(event);\n    if (!read) continue;\n    const times = bySubject.get(read.sub);\n    if (times) times.push(read.time); else bySubject.set(read.sub, [read.time]);\n  }\n  return bySubject;\n}\n\n// ---- 규칙 burst_read --------------------------------------------------------\n// 시각을 오름차순으로 놓고, 창 안(첫 사건~마지막 사건이 10분 이하)의 건수가 120을 넘는\n// 첫 시각을 찾습니다. 창 계산은 at 시각만 씁니다. 못 찾으면 null입니다.\nfunction firstBurstTime(times) {\n  const sorted = [...times].sort((a, b) => a - b);\n  let left = 0;\n  for (let right = 0; right < sorted.length; right += 1) {\n    while (sorted[right] - sorted[left] > WINDOW_MS) left += 1;\n    if (right - left + 1 > LIMIT) return sorted[right];\n  }\n  return null;\n}\n\nexport function detect(events) {\n  if (!Array.isArray(events)) throw new TypeError('invalid_detection_events');\n  // 의심 사용자가 여럿이면 가장 먼저 한도를 넘은 사용자 한 명을 돌려줍니다(같은 시각이면 sub 순서).\n  let suspect = null;\n  for (const [sub, times] of readTimesBySubject(events)) {\n    const burstAt = firstBurstTime(times);\n    if (burstAt === null) continue;\n    if (suspect === null || burstAt < suspect.burstAt || (burstAt === suspect.burstAt && sub < suspect.sub)) {\n      suspect = { sub, burstAt };\n    }\n  }\n  if (suspect === null) return { action: 'observe' };\n  // 돌려주는 키는 정확히 세 개뿐입니다. 기기 번호 같은 다른 키는 덧붙이지 않습니다.\n  return { action: 'propose_revocation', reasonCode: BURST_RULE, subject: suspect.sub };\n}\n"
+    }
+  }
+}

@@ -106,7 +106,7 @@ test('step 3 identity adds the login issuer and routes, tied to the same Supabas
   assert.throws(() => deploymentIdentity(env, { ...config3, identityProvider: null }));
   assert.throws(() => deploymentIdentity(env, { ...config3, allowedRoutes: [] }));
   assert.throws(() => deploymentIdentity(env, { ...config3, allowedRoutes: ['api/notes'] }));
-  assert.throws(() => deploymentIdentity(env, { ...config3, step: 10 }));
+  assert.throws(() => deploymentIdentity(env, { ...config3, step: 11 }));
   assert.equal(deploymentIdentity(env, { ...config3, step: 4 }).step, 4);
   assert.equal('originalApiUrl' in deploymentIdentity(env, { ...config3, step: 4 }), false);
   // 발급자가 다른 프로젝트를 가리키면 거부합니다.
@@ -229,4 +229,25 @@ test('step 8 allowed routes carry the method and must match the decider allow li
   }
   // 3~7단계의 경로만 적는 형식은 그대로 받습니다.
   assert.deepEqual(deploymentIdentity(env, { ...config5, step: 7 }).allowedRoutes, config5.allowedRoutes);
+});
+
+test('step 10 attack check adds an anonymous POST to the restore route and sends no token', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  try {
+    globalThis.fetch = async (url, init = {}) => {
+      calls.push({ url: String(url), method: init.method ?? 'GET', headers: init.headers ?? {} });
+      if (String(url).endsWith('/data.json')) return new Response(JSON.stringify({ notes: [] }), { status: 200, headers: { 'content-type': 'application/json' } });
+      if (String(url).includes('/rest/v1/')) return new Response('[]', { status: 401, headers: { 'content-type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'UNAUTHORIZED' }), { status: 401, headers: { 'content-type': 'application/json' } });
+    };
+    const results = await runAttackChecks({ ...config5, step: 10 });
+    const restore = results.find((r) => r.attackId === 'anonymous_restore');
+    assert.match(restore.observed, /JSON 오류로 거부됨 \(HTTP 401\)/u);
+    const call = calls.find((c) => c.url.includes('/api/restore/notes/'));
+    assert.equal(call.method, 'POST');
+    assert.equal(JSON.stringify(call.headers).toLowerCase().includes('authorization'), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
