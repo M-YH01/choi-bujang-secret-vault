@@ -106,7 +106,7 @@ test('step 3 identity adds the login issuer and routes, tied to the same Supabas
   assert.throws(() => deploymentIdentity(env, { ...config3, identityProvider: null }));
   assert.throws(() => deploymentIdentity(env, { ...config3, allowedRoutes: [] }));
   assert.throws(() => deploymentIdentity(env, { ...config3, allowedRoutes: ['api/notes'] }));
-  assert.throws(() => deploymentIdentity(env, { ...config3, step: 9 }));
+  assert.throws(() => deploymentIdentity(env, { ...config3, step: 10 }));
   assert.equal(deploymentIdentity(env, { ...config3, step: 4 }).step, 4);
   assert.equal('originalApiUrl' in deploymentIdentity(env, { ...config3, step: 4 }), false);
   // 발급자가 다른 프로젝트를 가리키면 거부합니다.

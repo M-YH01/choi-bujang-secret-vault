@@ -6,7 +6,7 @@ const SUPABASE_HOST = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.supabase\.co$/u;
 // 공개(publishable) 키만 허용합니다. secret 키나 서버 전용 키는 이 형식이 아니라서 거부됩니다.
 const PUBLISHABLE_KEY = /^sb_publishable_[A-Za-z0-9_-]{16,200}$/u;
 const DATABASE_TABLE = 'study_notes';
-const STEPS = [1, 2, 3, 4, 5, 6, 7, 8];
+const STEPS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const ROUTE = /^\/[A-Za-z0-9_\-./:]{0,119}$/u;
 // 8단계부터는 허용 경로에 메서드를 붙여 적습니다. 예: GET /api/notes/:id
 const METHOD_ROUTE = /^(?:GET|POST|PUT|PATCH|DELETE) \/[A-Za-z0-9_\-./:]{0,119}$/u;
@@ -58,7 +58,7 @@ export function deploymentIdentity(env, config) {
       || !/^https:\/\/[a-z0-9-]+\.up\.railway\.app\/defense\/judge$/iu.test(config.judgeIssuer)
       || typeof config.sampleMarker !== 'string'
       || !/^[A-Z0-9_]{1,80}$/u.test(config.sampleMarker)) {
-    throw new Error('배포 식별 정보를 확인할 수 없습니다. Vercel 시스템 환경변수와 aleph.config.json(step 1~8)을 확인하세요.');
+    throw new Error('배포 식별 정보를 확인할 수 없습니다. Vercel 시스템 환경변수와 aleph.config.json(step 1~9)을 확인하세요.');
   }
   const databaseUrl = supabaseOrigin(env.SUPABASE_URL);
   const publishableKey = env.SUPABASE_PUBLISHABLE_KEY;
