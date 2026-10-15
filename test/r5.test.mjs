@@ -251,3 +251,13 @@ test('step 10 attack check adds an anonymous POST to the restore route and sends
     globalThis.fetch = originalFetch;
   }
 });
+
+test('step 10 identity publishes the restore route and rejects a missing or malformed one', () => {
+  const config10 = { ...config5, step: 10, allowedRoutes: ['GET /api/notes/:id'], restoreRoute: 'POST /api/restore/notes/:id' };
+  const identity = deploymentIdentity(env, config10);
+  assert.equal(identity.restoreRoute, 'POST /api/restore/notes/:id');
+  assert.equal(identity.step, 10);
+  assert.equal('restoreRoute' in deploymentIdentity(env, { ...config10, step: 9 }), false);
+  assert.throws(() => deploymentIdentity(env, { ...config10, restoreRoute: undefined }));
+  assert.throws(() => deploymentIdentity(env, { ...config10, restoreRoute: '/api/restore/notes/:id' }));
+});

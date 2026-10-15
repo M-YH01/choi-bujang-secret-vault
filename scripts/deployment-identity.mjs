@@ -92,5 +92,11 @@ export function deploymentIdentity(env, config) {
   if (!originalApiUrl) {
     throw new Error('5단계부터 aleph.config.json의 originalApiUrl이 필요하고, SUPABASE_URL과 같은 프로젝트의 /rest/v1/study_notes 주소(쿼리 없음)여야 합니다.');
   }
-  return { ...base, allowedRoutes, identityProvider, originalApiUrl, database };
+  const published = { ...base, allowedRoutes, identityProvider, originalApiUrl, database };
+  if (config.step < 10) return published;
+  // 10단계부터: 비공개 백업에서 메모 한 건을 되살리는 경로를 공개합니다(주소 모양만, 비밀값 없음).
+  if (typeof config.restoreRoute !== 'string' || !METHOD_ROUTE.test(config.restoreRoute)) {
+    throw new Error('10단계부터 aleph.config.json의 restoreRoute(예: POST /api/restore/notes/:id)가 필요합니다.');
+  }
+  return { ...published, restoreRoute: config.restoreRoute };
 }

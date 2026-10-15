@@ -29,7 +29,7 @@
 
 ### 제작 3: 비공개 백업에서 메모 한 건 복원 (`POST /api/restore/notes/:id`)
 
-- 서비스: `src/restore-api.mjs`, 경로 파일 `api/restore/notes/[id].js`. `aleph.config.json`에 `restoreRoute`로 적었고, 판정기 허용 경로(`allowedRoutes`)에는 **넣지 않았습니다**(구역 규칙의 기본값이 거부).
+- 서비스: `src/restore-api.mjs`, 경로 파일 `api/restore/notes/[id].js`. `aleph.config.json`에 `restoreRoute`로 적었고, 배포가 공개하는 `/aleph.json`과 제출 묶음에 이 경로가 실립니다. 판정기 허용 경로(`allowedRoutes`)에는 **넣지 않았습니다**(구역 규칙의 기본값이 거부).
 - 백업 표: `study_notes_backup`(비공개, 서버 비밀 키로만 읽음), 감사 표: `study_notes_audit`(추가만, 수정·삭제 권한 회수). 만드는 SQL은 `sql/10-backup-tables.sql`이며, **침해 전에** Supabase SQL Editor에서 실행해야 사본이 의미가 있습니다.
 - 한 건만 복원합니다. 확인 순서: 로그인 확인 → `:id`가 UUID → 백업의 `id`·`owner_id`가 로그인한 사람과 같음(없거나 남의 것이면 같은 404) → 백업 해시 재계산(`sha256(제목 + 0x00 + 본문)`)이 저장된 해시와 같음(다르면 422, 쓰기 없음) → 현재 행의 주인이 다르면 409.
 - 이미 같으면 아무것도 쓰지 않습니다. 감사 `started` 기록이 실패하면 쓰기 전에 멈춥니다. 쓴 뒤 다시 읽어 해시를 대조하고 `restored`를 기록합니다. 본문은 응답·로그·감사에 넣지 않습니다. 다른 메모와 다른 사람의 행은 건드리지 않습니다.
