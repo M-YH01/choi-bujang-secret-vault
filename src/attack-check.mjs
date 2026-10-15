@@ -95,21 +95,6 @@ async function anonymousNoteItem(app) {
       : `로그인 없는 요청이 JSON 오류로 거부되지 않음 (HTTP ${response.status})` };
 }
 
-// 10단계: 로그인 없이 복원 경로(POST /api/restore/notes/:id)를 불러도 JSON 오류로 거부되는가.
-// 번호는 존재하지 않는 시험용 값이고 토큰은 보내지 않으므로 아무 메모도 바뀌지 않습니다.
-async function anonymousRestore(app) {
-  const response = await fetch(new URL('/api/restore/notes/00000000-0000-4000-8000-000000000000', app), {
-    method: 'POST', redirect: 'error', signal: AbortSignal.timeout(10000), headers: { Accept: 'application/json' },
-  });
-  let hasError = false;
-  try { hasError = typeof (await response.json())?.error === 'string'; } catch { /* 본문이 JSON이 아니면 거부로 인정하지 않습니다. */ }
-  const isJson = (response.headers.get('content-type') ?? '').includes('json');
-  const rejected = (response.status === 401 || response.status === 403) && isJson && hasError;
-  return { attackId: 'anonymous_restore', expected: '로그인 없이 복원 경로로 메모 되살리기',
-    observed: rejected ? `로그인 없는 요청이 JSON 오류로 거부됨 (HTTP ${response.status})`
-      : `로그인 없는 요청이 JSON 오류로 거부되지 않음 (HTTP ${response.status})` };
-}
-
 // 11단계: 로그인 없이 기기 승인 상태를 물어도 거부되는가(승인 상태가 새어 나가지 않는가).
 async function anonymousDeviceStatus(app) {
   const response = await fetch(new URL('/api/device', app), {
@@ -190,7 +175,8 @@ export async function runAttackChecks(config) {
     await guarded('anonymous_note_list', '로그인 없이 /api/notes 메모 목록을 읽기', () => anonymousNoteList(app))];
   if (config.step >= 4) results.push(await guarded('anonymous_note_item', '로그인 없이 /api/notes/:id 한 건을 읽기', () => anonymousNoteItem(app)));
   if (config.step >= 5) results.push(await guarded('direct_original_read', '공개 키로 원본 자료 주소를 직접 불러 메모 읽기', () => directOriginalRead(config, app)));
-  if (config.step >= 10) results.push(await guarded('anonymous_restore', '로그인 없이 복원 경로로 메모 되살리기', () => anonymousRestore(app)));
+  // 복원 경로는 POST(쓰기)만 받습니다. 이 자기 점검은 읽기(GET)만 보내므로 요청을 보내지 않고 미실행으로 적습니다.
+  if (config.step >= 10) results.push(notSent('anonymous_restore', '로그인 없이 복원 경로로 메모 되살리기', '복원은 쓰기(POST) 요청이라 이 점검에서는 요청을 보내지 않았습니다. 읽기(GET)만 보냅니다.'));
   // 승인된 기기에서의 정상 열림과 승인 전 거부(로그인 토큰·기기 쿠키 필요)는 이 점검에서 실행하지 않습니다(미실행).
   if (config.step >= 11) results.push(await guarded('anonymous_device_status', '로그인 없이 기기 승인 상태 읽기', () => anonymousDeviceStatus(app)));
   if (config.step >= 12) {

@@ -231,7 +231,7 @@ test('step 8 allowed routes carry the method and must match the decider allow li
   assert.deepEqual(deploymentIdentity(env, { ...config5, step: 7 }).allowedRoutes, config5.allowedRoutes);
 });
 
-test('step 10 attack check adds an anonymous POST to the restore route and sends no token', async () => {
+test('step 10 attack check sends no write request: the restore check is recorded as not run, and every sent request is GET', async () => {
   const originalFetch = globalThis.fetch;
   const calls = [];
   try {
@@ -243,10 +243,11 @@ test('step 10 attack check adds an anonymous POST to the restore route and sends
     };
     const results = await runAttackChecks({ ...config5, step: 10 });
     const restore = results.find((r) => r.attackId === 'anonymous_restore');
-    assert.match(restore.observed, /JSON 오류로 거부됨 \(HTTP 401\)/u);
-    const call = calls.find((c) => c.url.includes('/api/restore/notes/'));
-    assert.equal(call.method, 'POST');
-    assert.equal(JSON.stringify(call.headers).toLowerCase().includes('authorization'), false);
+    assert.ok(restore.observed.startsWith('미실행'));
+    assert.equal(/HTTP \d{3}/u.test(restore.observed), false);
+    assert.equal(calls.some((c) => c.url.includes('/api/restore/')), false);
+    assert.deepEqual([...new Set(calls.map((c) => c.method))], ['GET']);
+    assert.equal(JSON.stringify(calls.map((c) => c.headers)).toLowerCase().includes('authorization'), false);
   } finally {
     globalThis.fetch = originalFetch;
   }
