@@ -434,3 +434,12 @@
 
 `src/decider.mjs`와 `src/detect.mjs`의 로컬 시험은 반 엔진이나 운영 심판의 결과가 아닙니다. 1단계 이후 제출 묶음 계약 `aleph.defense.submission.v2`는 `scripts/bundle.mjs`에 남아 있으며, 코딩 도구가 해당 단계의 최신 배포 주소와 Git 원격을 맞춘 뒤 사용합니다.
 
+
+## 보너스 xdr-01: 무차별 로그인 공격 판정 (연습)
+
+- `xdr/brute-force/read-alerts.mjs`: 가상 경보(`xdr/fixtures/brute-force.json`)에서 시간·출처 주소·계정·등급·설명만 뽑습니다(비밀값처럼 보이는 값은 가림).
+- `xdr/brute-force/patterns.json`: MITRE ATT&CK T1110 근거가 있는 패턴 3개. 숫자 기준은 제가 연습용으로 정한 값입니다.
+- `xdr/brute-force/decide.mjs`: 가져오기(import) 없는 순수 함수. 0.85 이상 block, 0.5 이상 alert, 그 아래 record.
+- `xdr/brute-force/respond.mjs`: block만 만료 시간·경보 번호가 있는 차단 규칙(`xdr/deny-rules.json`)으로 바꾸고, 경보는 `xdr/alerts.log`에 한 줄씩 남깁니다. 두 파일은 실행 때 생기며 Git에는 올리지 않습니다.
+- 다시 실행: `npm run xdr:run -- brute-force` → `xdr/brute-force/result.json` (block 10 · alert 9 · record 9, 정상 사건 차단 0).
+- 한계: 차단 규칙 파일은 아직 `src/decider.mjs`에 연결하지 않았습니다. 이 결과는 내 PC 연습 실행이며 심판 판정이 아닙니다.

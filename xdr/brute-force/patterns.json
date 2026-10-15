@@ -1,0 +1,26 @@
+{
+  "schema": "aleph.xdr.patterns.v1",
+  "moduleKey": "brute-force",
+  "source": "MITRE ATT&CK T1110 Brute Force (하위 기술 T1110.001 Password Guessing, T1110.003 Password Spraying)",
+  "note": "아래 숫자 기준은 MITRE가 정한 값이 아니라, 이 실습 경보의 규칙 수준·건수 분포에 맞춰 학생이 정한 시험용 기준입니다.",
+  "patterns": [
+    {
+      "name": "burst_failures_same_source",
+      "technique": "T1110.001",
+      "when": { "minFailures": 15 },
+      "evidence": "T1110.001 Password Guessing: 한 주소·한 계정에서 짧은 시간에 로그인 실패가 연속으로 쌓이는 비밀번호 추측 형태입니다."
+    },
+    {
+      "name": "password_spray_many_accounts",
+      "technique": "T1110.003",
+      "when": { "minAccounts": 8 },
+      "evidence": "T1110.003 Password Spraying: 같은 주소가 여러 계정에 같은 비밀번호를 대입하는 형태입니다."
+    },
+    {
+      "name": "slow_failures_below_burst",
+      "technique": "T1110.001",
+      "when": { "minFailures": 3, "maxFailures": 14, "needsT1110Tag": true },
+      "evidence": "T1110.001 Password Guessing과 같은 기술이지만 실패 수가 기준 미만이라, 막지 않고 알림으로만 남기는 낮은 확신도 구간입니다."
+    }
+  ]
+}

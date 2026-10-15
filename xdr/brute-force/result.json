@@ -1,0 +1,179 @@
+{
+  "schema": "aleph.xdr.result.v1",
+  "moduleKey": "brute-force",
+  "decisions": [
+    {
+      "alertId": "bf-01",
+      "action": "block",
+      "confidence": 0.95,
+      "reason": "burst_failures_same_source (T1110.001): 같은 주소 로그인 실패 48건"
+    },
+    {
+      "alertId": "bf-02",
+      "action": "block",
+      "confidence": 0.95,
+      "reason": "password_spray_many_accounts (T1110.003): 계정 8개에 같은 주소가 시도"
+    },
+    {
+      "alertId": "bf-03",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "burst_failures_same_source (T1110.001): 같은 주소 로그인 실패 36건"
+    },
+    {
+      "alertId": "bf-04",
+      "action": "block",
+      "confidence": 0.95,
+      "reason": "burst_failures_same_source (T1110.001): 같은 주소 로그인 실패 52건"
+    },
+    {
+      "alertId": "bf-05",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "burst_failures_same_source (T1110.001): 같은 주소 로그인 실패 20건"
+    },
+    {
+      "alertId": "bf-06",
+      "action": "block",
+      "confidence": 0.95,
+      "reason": "burst_failures_same_source (T1110.001): 같은 주소 로그인 실패 61건"
+    },
+    {
+      "alertId": "bf-07",
+      "action": "block",
+      "confidence": 0.95,
+      "reason": "burst_failures_same_source (T1110.001): 같은 주소 로그인 실패 40건"
+    },
+    {
+      "alertId": "bf-08",
+      "action": "block",
+      "confidence": 0.95,
+      "reason": "burst_failures_same_source (T1110.001): 같은 주소 로그인 실패 70건"
+    },
+    {
+      "alertId": "bf-09",
+      "action": "block",
+      "confidence": 0.95,
+      "reason": "password_spray_many_accounts (T1110.003): 계정 15개에 같은 주소가 시도"
+    },
+    {
+      "alertId": "bf-10",
+      "action": "block",
+      "confidence": 0.95,
+      "reason": "burst_failures_same_source (T1110.001): 같은 주소 로그인 실패 90건"
+    },
+    {
+      "alertId": "bf-11",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "slow_failures_below_burst (T1110.001): 로그인 실패 4건(기준 미만)"
+    },
+    {
+      "alertId": "bf-12",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "slow_failures_below_burst (T1110.001): 로그인 실패 6건(기준 미만)"
+    },
+    {
+      "alertId": "bf-13",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "slow_failures_below_burst (T1110.001): 로그인 실패 3건(기준 미만)"
+    },
+    {
+      "alertId": "bf-14",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "slow_failures_below_burst (T1110.001): 로그인 실패 5건(기준 미만)"
+    },
+    {
+      "alertId": "bf-15",
+      "action": "alert",
+      "confidence": 0.6,
+      "reason": "slow_failures_below_burst (T1110.001): 로그인 실패 4건(기준 미만)"
+    },
+    {
+      "alertId": "bf-16",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "slow_failures_below_burst (T1110.001): 로그인 실패 3건(기준 미만)"
+    },
+    {
+      "alertId": "bf-17",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "slow_failures_below_burst (T1110.001): 로그인 실패 4건(기준 미만)"
+    },
+    {
+      "alertId": "bf-18",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "slow_failures_below_burst (T1110.001): 로그인 실패 8건(기준 미만)"
+    },
+    {
+      "alertId": "bf-19",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "slow_failures_below_burst (T1110.001): 로그인 실패 3건(기준 미만)"
+    },
+    {
+      "alertId": "bf-20",
+      "action": "record",
+      "confidence": 0,
+      "reason": "no_pattern: 일치하는 패턴이 없어 기록만 합니다"
+    },
+    {
+      "alertId": "bf-21",
+      "action": "record",
+      "confidence": 0,
+      "reason": "no_pattern: 일치하는 패턴이 없어 기록만 합니다"
+    },
+    {
+      "alertId": "bf-22",
+      "action": "record",
+      "confidence": 0,
+      "reason": "no_pattern: 일치하는 패턴이 없어 기록만 합니다"
+    },
+    {
+      "alertId": "bf-23",
+      "action": "record",
+      "confidence": 0,
+      "reason": "no_pattern: 일치하는 패턴이 없어 기록만 합니다"
+    },
+    {
+      "alertId": "bf-24",
+      "action": "record",
+      "confidence": 0,
+      "reason": "no_pattern: 일치하는 패턴이 없어 기록만 합니다"
+    },
+    {
+      "alertId": "bf-25",
+      "action": "record",
+      "confidence": 0,
+      "reason": "no_pattern: 일치하는 패턴이 없어 기록만 합니다"
+    },
+    {
+      "alertId": "bf-26",
+      "action": "record",
+      "confidence": 0,
+      "reason": "no_pattern: 일치하는 패턴이 없어 기록만 합니다"
+    },
+    {
+      "alertId": "bf-27",
+      "action": "record",
+      "confidence": 0,
+      "reason": "no_pattern: 일치하는 패턴이 없어 기록만 합니다"
+    },
+    {
+      "alertId": "bf-28",
+      "action": "record",
+      "confidence": 0,
+      "reason": "no_pattern: 일치하는 패턴이 없어 기록만 합니다"
+    }
+  ],
+  "counts": {
+    "block": 10,
+    "alert": 9,
+    "record": 9
+  }
+}
