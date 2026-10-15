@@ -89,7 +89,8 @@ test('requests without a valid login, wrong methods and bad ids are rejected bef
   for (const id of [undefined, 'not-a-uuid', '../x', NOTE_B.toUpperCase().slice(0, 35)]) {
     assert.equal((await call(api, req('POST', { token: 'tokB', id }))).statusCode, 404, String(id));
   }
-  assert.equal(state.audit.length, 0);
+  // 로그인 전·잘못된 방식 요청은 아무것도 기록하지 않고, 로그인한 뒤의 잘못된 번호만 이유 한 줄(번호 없이)로 남습니다.
+  assert.deepEqual(state.audit.map((e) => [e.actor, e.noteId, e.result]), Array(4).fill([B, null, 'denied_bad_id']));
 });
 
 test('B restores only the chosen note from the backup and nothing else changes', async () => {
@@ -152,7 +153,18 @@ test('another user cannot restore a note from someone else’s backup, and a mis
     assert.deepEqual(lines, ['restore_denied not_owner', 'restore_denied no_backup']);
   });
   assert.deepEqual([...state.notes], before);
-  assert.equal(state.audit.length, 0);
+  // 거절 이유는 감사 표에 남지만 응답은 두 경우가 똑같고, 사본·메모는 바뀌지 않습니다.
+  assert.deepEqual(state.audit.map((e) => e.result), ['denied_not_owner', 'denied_no_backup']);
+  assert.ok(state.audit.every((e) => e.actor === A && e.digest === null));
+});
+
+test('a failing audit write never changes a denial response', async () => {
+  const { api } = seed({ fail: { audit_denied_no_backup: true } });
+  await quiet(async () => {
+    const res = await call(api, req('POST', { token: 'tokA', id: MISSING }));
+    assert.equal(res.statusCode, 404);
+    assert.equal(res.body.error, 'NOT_FOUND');
+  });
 });
 
 test('a backup whose hash no longer matches is refused and recorded', async () => {

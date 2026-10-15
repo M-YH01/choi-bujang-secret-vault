@@ -75,24 +75,29 @@ export function createRestoreApi({ verify, getStore }) {
     const fromPath = Array.isArray(raw) ? raw[0] : raw;
     const id = fromPath ?? body?.id ?? body?.noteId;
     const notFound = () => fail(response, 404, 'NOT_FOUND', '복원할 사본을 찾을 수 없습니다.');
-    if (typeof id !== 'string' || !UUID.test(id)) return notFound();
-    const dryRun = Boolean(input && typeof input === 'object' && !Array.isArray(input) && input.dryRun === true);
+    const validId = typeof id === 'string' && UUID.test(id);
+    const dryRun = Boolean(body && body.dryRun === true);
 
     let store;
     try {
       store = getStore();
     } catch {
       console.error('restore_not_configured');
+      if (!validId) return notFound();
       return fail(response, 500, 'NOT_CONFIGURED', '서버 설정을 준비하지 못했습니다.');
     }
-    const record = (action, digest, result) => store.audit({ actor: userId, action, noteId: id, digest, result });
+    const record = (action, digest, result) => store.audit({ actor: userId, action, noteId: validId ? id : null, digest, result });
+    // 로그인한 요청이 어디서 거절됐는지 감사 표에 남깁니다(내용·번호 원문 없이 이유만). 기록이 실패해도 응답은 바뀌지 않습니다.
+    const denied = async (reason) => {
+      console.warn('restore_denied', reason);
+      await record('restore_note', null, `denied_${reason}`).catch(() => console.error('audit_write_failed'));
+      return notFound();
+    };
+    if (!validId) return denied('bad_id');
     try {
       // 1) 사본 ID와 소유자 대조. 남의 사본과 없는 사본은 같은 404입니다.
       const backup = await store.getBackup(id);
-      if (!backup || backup.id !== id || backup.ownerId !== userId) {
-        console.warn('restore_denied', backup ? 'not_owner' : 'no_backup');
-        return notFound();
-      }
+      if (!backup || backup.id !== id || backup.ownerId !== userId) return denied(backup ? 'not_owner' : 'no_backup');
       // 2) 사본 내용 해시 대조. 사본이 바뀌었으면 복원하지 않습니다.
       const digest = contentSha256(backup.title, backup.content);
       if (typeof backup.contentSha256 !== 'string' || digest !== backup.contentSha256) {
@@ -104,6 +109,7 @@ export function createRestoreApi({ verify, getStore }) {
       const current = await store.getCurrent(id);
       if (current && current.ownerId !== userId) {
         console.warn('restore_denied', 'current_owner_differs');
+        await record('restore_note', digest, 'denied_conflict').catch(() => console.error('audit_write_failed'));
         return fail(response, 409, 'CONFLICT', '현재 메모의 소유자가 사본과 달라 복원하지 않았습니다.');
       }
       // 사본 검증 결과와 "바뀔 항목"(이름만, 내용 없음)을 응답에 함께 알립니다.
