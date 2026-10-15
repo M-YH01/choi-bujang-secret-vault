@@ -296,3 +296,13 @@ test('the backup SQL, route file and config describe the same feature', async ()
   const route = await readFile(resolve(root, 'api/restore/notes/[id].js'), 'utf8');
   assert.ok(route.includes('restoreApi.restoreOne'));
 });
+
+test('the auto-backup trigger SQL keeps the same hash formula, never overwrites a copy and holds no secrets', async () => {
+  const sql = await readFile(resolve(root, 'sql/10-auto-backup-trigger.sql'), 'utf8');
+  for (const needle of ['after insert on public.study_notes', 'security definer', 'set search_path',
+    "convert_to(new.title, 'UTF8') || '\\x00'::bytea || convert_to(new.content, 'UTF8')", 'on conflict (id) do nothing',
+    'revoke all on function public.study_notes_auto_backup() from public, anon, authenticated', "'auto_backup'"]) {
+    assert.ok(sql.includes(needle), needle);
+  }
+  assert.equal(/after update|after delete|@|sb_secret|eyJ/iu.test(sql), false);
+});
