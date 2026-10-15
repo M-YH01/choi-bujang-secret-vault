@@ -315,3 +315,24 @@ test('step 12 attack check sends one anonymous request and marks everything it d
     globalThis.fetch = originalFetch;
   }
 });
+
+test('with no network the attack checks do not stop the bundle: every unsent request is recorded as not run, never as a pass', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+  try {
+    for (const step of [1, 5, 10, 12]) {
+      const results = await runAttackChecks({ ...config5, step });
+      assert.ok(results.length >= 1 && results.length <= 20);
+      assert.equal(new Set(results.map((r) => r.attackId)).size, results.length);
+      for (const row of results) {
+        assert.deepEqual(Object.keys(row).sort(), ['attackId', 'expected', 'observed']);
+        assert.ok(row.observed.startsWith('미실행'), `${step}단계 ${row.attackId}`);
+        assert.ok(row.observed.length <= 300 && row.expected.length <= 300);
+      }
+    }
+    // 설정 오류는 숨기지 않고 그대로 알립니다.
+    await assert.rejects(runAttackChecks({ ...config5, step: 5, originalApiUrl: 'not a url' }), /originalApiUrl/u);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

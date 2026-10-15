@@ -15,6 +15,29 @@ function appOrigin(config) {
   return app;
 }
 
+// 연결이 막힌 곳(격리 실행 등)에서는 요청 자체를 보낼 수 없습니다. 그 점검만 "미실행"으로 적고 묶음 생성은 멈추지 않습니다.
+// 보내지 못한 요청을 성공이나 거부로 적지 않습니다. 설정 오류(주소 형식 등)는 그대로 던져 알려 줍니다.
+const NETWORK_CODES = new Set(['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNRESET', 'ETIMEDOUT', 'ENETUNREACH', 'EHOSTUNREACH',
+  'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_SOCKET']);
+function isNetworkFailure(error) {
+  return error?.name === 'TimeoutError' || error?.name === 'AbortError'
+    || NETWORK_CODES.has(error?.cause?.code)
+    || (error instanceof TypeError && /fetch failed/iu.test(String(error.message)));
+}
+async function guarded(attackId, expected, run) {
+  try {
+    return await run();
+  } catch (error) {
+    if (/redirect/iu.test(String(error?.cause?.message ?? error?.message))) {
+      return { attackId, expected, observed: '리다이렉트 응답을 받아 거부로 인정하지 않음' };
+    }
+    if (isNetworkFailure(error)) {
+      return { attackId, expected, observed: '미실행: 요청을 보내지 못했습니다(연결 실패 또는 시간 초과). 성공으로 세지 않습니다.' };
+    }
+    throw error;
+  }
+}
+
 const request = (url) => fetch(url, {
   redirect: 'error', signal: AbortSignal.timeout(10000), headers: { Accept: 'application/json' },
 });
@@ -159,19 +182,20 @@ export async function runAttackChecks(config) {
     throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
   }
   const app = appOrigin(config);
-  if (config.step === 1) return [await anonymousDataJson(config, app)];
+  const dataJson = () => guarded('anonymous_note_read', '비로그인 화면에서 가상 메모를 확인', () => anonymousDataJson(config, app));
+  if (config.step === 1) return [await dataJson()];
   // 3단계에서는 /data.json에 메모가 없는지, /api/notes가 로그인 없이 거부되는지 함께 봅니다.
   // 정상 로그인(A)과 타인(B) 요청은 토큰이 필요해서 이 점검에서는 실행하지 않습니다(미실행).
   // 4단계의 A·B 교차 요청(남의 번호로 읽기·수정·삭제)도 토큰이 필요해 이 점검에서는 미실행입니다.
-  const results = [await anonymousDataJson({ ...config, sampleMarker: config.sampleMarker }, app),
-    await anonymousNoteList(app)];
-  if (config.step >= 4) results.push(await anonymousNoteItem(app));
-  if (config.step >= 5) results.push(await directOriginalRead(config, app));
-  if (config.step >= 10) results.push(await anonymousRestore(app));
+  const results = [await dataJson(),
+    await guarded('anonymous_note_list', '로그인 없이 /api/notes 메모 목록을 읽기', () => anonymousNoteList(app))];
+  if (config.step >= 4) results.push(await guarded('anonymous_note_item', '로그인 없이 /api/notes/:id 한 건을 읽기', () => anonymousNoteItem(app)));
+  if (config.step >= 5) results.push(await guarded('direct_original_read', '공개 키로 원본 자료 주소를 직접 불러 메모 읽기', () => directOriginalRead(config, app)));
+  if (config.step >= 10) results.push(await guarded('anonymous_restore', '로그인 없이 복원 경로로 메모 되살리기', () => anonymousRestore(app)));
   // 승인된 기기에서의 정상 열림과 승인 전 거부(로그인 토큰·기기 쿠키 필요)는 이 점검에서 실행하지 않습니다(미실행).
-  if (config.step >= 11) results.push(await anonymousDeviceStatus(app));
+  if (config.step >= 11) results.push(await guarded('anonymous_device_status', '로그인 없이 기기 승인 상태 읽기', () => anonymousDeviceStatus(app)));
   if (config.step >= 12) {
-    results.push(await anonymousOpsSummary(app));
+    results.push(await guarded('anonymous_ops_summary', '로그인 없이 작전실 요약 읽기', () => anonymousOpsSummary(app)));
     results.push(
       notSent('cross_user_note_read', '다른 사용자의 메모 번호로 읽기', '로그인 토큰이 필요해 이 점검에서는 요청을 보내지 않았습니다.'),
       notSent('verification_matrix', '1~11단계 정상·금지 요청 실측 표', '이 점검은 요청을 보내지 않았습니다. 실측 표는 npm run verify:matrix로 따로 만들며 제출 묶음에는 넣지 않았습니다.'),
