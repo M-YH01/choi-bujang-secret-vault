@@ -95,8 +95,9 @@ export function deploymentIdentity(env, config) {
   const published = { ...base, allowedRoutes, identityProvider, originalApiUrl, database };
   if (config.step < 10) return published;
   // 10단계부터: 비공개 백업에서 메모 한 건을 되살리는 경로를 공개합니다(주소 모양만, 비밀값 없음).
-  if (typeof config.restoreRoute !== 'string' || !METHOD_ROUTE.test(config.restoreRoute)) {
-    throw new Error('10단계부터 aleph.config.json의 restoreRoute(예: POST /api/restore/notes/:id)가 필요합니다.');
+  // 복구 경로는 요청 방식(POST)이 정해져 있어 경로만 적습니다. 방식이 붙은 형식(POST /…)도 받아들입니다.
+  if (typeof config.restoreRoute !== 'string' || !(ROUTE.test(config.restoreRoute) || METHOD_ROUTE.test(config.restoreRoute))) {
+    throw new Error('10단계부터 aleph.config.json의 restoreRoute(예: /api/restore/notes/:id)가 필요합니다.');
   }
   return { ...published, restoreRoute: config.restoreRoute };
 }
