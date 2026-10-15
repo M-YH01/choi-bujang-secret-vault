@@ -1,0 +1,44 @@
+{
+  "schema": "aleph.xdr.patterns.v1",
+  "moduleKey": "persistence",
+  "source": "MITRE ATT&CK T1543 Create or Modify System Process, T1053 Scheduled Task/Job (시작 폴더 항목은 ATT&CK에서 T1547.001 Startup Folder)",
+  "note": "수업 안내는 T1543·T1053 만 적었지만, 시작 폴더 변경은 ATT&CK에서 T1547.001 로 분류돼 그 번호를 적었습니다. 아래 점수 기준은 MITRE가 정한 값이 아니라 이 실습 경보에 맞춰 학생이 정한 시험용 기준입니다.",
+  "patterns": [
+    {
+      "name": "unsigned_service_registered",
+      "technique": "T1543",
+      "when": { "signal": "서명 없는 서비스 등록·변경" },
+      "evidence": "T1543: 공격자는 다시 켜도 남도록 서비스를 새로 만들거나 실행 파일을 바꿔 두는데, 서명이 없는 새 서비스 등록·변경은 그 대표 형태입니다."
+    },
+    {
+      "name": "unknown_scheduled_task",
+      "technique": "T1053",
+      "when": { "signal": "처음 보는 예약 작업, 임의 문자열 이름, 수업 시간 밖 실행" },
+      "evidence": "T1053: 공격자는 예약 작업으로 프로그램을 정해진 때마다 다시 실행시켜 남아 있으므로, 평소 목록에 없는 낯선 예약 작업은 지속 형태의 신호입니다."
+    },
+    {
+      "name": "startup_folder_added",
+      "technique": "T1547.001",
+      "when": { "signal": "시작 폴더에 평소 목록에 없는 프로그램 추가" },
+      "evidence": "T1547.001: 시작 폴더에 넣은 프로그램은 로그인할 때마다 자동 실행되므로, 평소 목록에 없는 시작 폴더 추가는 지속 형태입니다."
+    },
+    {
+      "name": "temp_folder_executable_persisted",
+      "technique": "T1543",
+      "when": { "signal": "서비스·예약 작업·시작 항목이 임시 폴더의 실행 파일을 가리킴" },
+      "evidence": "T1543/T1053: 임시 폴더는 일반 사용자도 쓸 수 있는 자리라, 서비스·예약 작업이 그곳의 실행 파일을 가리키면 심어 둔 프로그램일 가능성이 큽니다."
+    },
+    {
+      "name": "multiple_mechanisms_or_remote_registration",
+      "technique": "T1543",
+      "when": { "signal": "서비스와 예약 작업·시작 항목을 함께 사용, 원격 주소의 연속 서비스 등록" },
+      "evidence": "T1543/T1053: 한 파일을 여러 방식(서비스·예약·시작)으로 동시에 걸어 두거나 원격에서 서비스를 연속 등록하는 것은, 한 방식이 지워져도 남으려는 지속 형태입니다."
+    },
+    {
+      "name": "unconfirmed_item_below_threshold",
+      "technique": "T1543",
+      "when": { "needsTag": true, "minLevel": 4, "maxPoints": 1 },
+      "evidence": "T1543/T1053 표시는 있으나 서명 없음·임시 폴더·원격 등록 같은 뚜렷한 지속 신호가 부족해, 정상 수업 작업과 구별되지 않으므로 막지 않고 알림으로만 남깁니다."
+    }
+  ]
+}

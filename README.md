@@ -461,3 +461,12 @@
 - `xdr/known-cve/respond.mjs`: block만 만료 시간·경보 번호가 있는 차단 규칙으로 바꿔 `xdr/deny-rules.json`에 넣고, 알림은 `xdr/alerts.log`에 한 줄씩 쌓습니다(두 파일은 Git에 올리지 않음).
 - 다시 실행: `npm run xdr:run -- known-cve` → `xdr/known-cve/result.json` (block 8 · alert 8 · record 8, 정상 사건 차단 0).
 - 한계: 차단 규칙 파일은 아직 `src/decider.mjs`에 연결하지 않았고 판정기 규칙은 고치지 않았습니다. 영향받는 버전 찾기·패치는 이 모듈이 하지 않습니다. 이 결과는 내 PC 연습 실행이며 심판 판정이 아닙니다.
+
+## 보너스 xdr-04: 몰래 심어진 프로그램 판정 (연습)
+
+- `xdr/persistence/read-alerts.mjs`: 가상 경보(`xdr/fixtures/persistence.json`)에서 시각·출발 주소·계정·수준·설명만 뽑습니다(확인용, decide.mjs가 불러오지 않음). 파일 경로는 출력하지 않습니다.
+- `xdr/persistence/patterns.json`: MITRE ATT&CK T1543·T1053 근거가 있는 패턴 6개(서명 없는 서비스, 낯선 예약 작업, 시작 폴더 추가, 임시 폴더 실행 파일, 여러 방식 동시 사용·원격 등록, 뚜렷하지 않은 항목). 시작 폴더는 ATT&CK에서 T1547.001 이라 그 번호를 적었습니다. 점수 기준은 제가 연습용으로 정한 값입니다.
+- `xdr/persistence/decide.mjs`: 가져오기(import) 없는 순수 함수. 지속 신호 점수가 4점 이상(확신도 0.9)일 때만 block, "서명은 확인되지 않았습니다"나 "서비스 등록은 없습니다" 같은 부정 문장은 신호로 세지 않고, 수준 3 이하이거나 표시가 없으면 record입니다.
+- `xdr/persistence/respond.mjs`: block만 만료 시간·경보 번호가 있는 격리용 거부 규칙으로 바꿔 `xdr/deny-rules.json`에 넣고, 알림은 `xdr/alerts.log`에 한 줄씩 쌓습니다(두 파일은 Git에 올리지 않음).
+- 다시 실행: `npm run xdr:run -- persistence` → `xdr/persistence/result.json` (block 8 · alert 8 · record 8, 정상 사건 차단 0).
+- 한계: 격리 규칙 파일은 아직 `src/decider.mjs`에 연결하지 않았고 판정기 규칙은 고치지 않았습니다. 파일 무결성 경보 원본을 직접 읽거나 PC에서 항목을 지우지는 않습니다. 이 결과는 내 PC 연습 실행이며 심판 판정이 아닙니다.

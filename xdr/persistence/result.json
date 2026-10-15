@@ -1,0 +1,155 @@
+{
+  "schema": "aleph.xdr.result.v1",
+  "moduleKey": "persistence",
+  "decisions": [
+    {
+      "alertId": "ps-01",
+      "action": "block",
+      "confidence": 0.98,
+      "reason": "unsigned_service_registered (T1543): 지속 신호가 여러 개 겹쳐 격리 후보입니다"
+    },
+    {
+      "alertId": "ps-02",
+      "action": "block",
+      "confidence": 0.98,
+      "reason": "unknown_scheduled_task (T1053): 지속 신호가 여러 개 겹쳐 격리 후보입니다"
+    },
+    {
+      "alertId": "ps-03",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "startup_folder_added (T1547.001): 지속 신호가 여러 개 겹쳐 격리 후보입니다"
+    },
+    {
+      "alertId": "ps-04",
+      "action": "block",
+      "confidence": 0.98,
+      "reason": "unsigned_service_registered (T1543): 지속 신호가 여러 개 겹쳐 격리 후보입니다"
+    },
+    {
+      "alertId": "ps-05",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "unknown_scheduled_task (T1053): 지속 신호가 여러 개 겹쳐 격리 후보입니다"
+    },
+    {
+      "alertId": "ps-06",
+      "action": "block",
+      "confidence": 0.98,
+      "reason": "unsigned_service_registered (T1543): 지속 신호가 여러 개 겹쳐 격리 후보입니다"
+    },
+    {
+      "alertId": "ps-07",
+      "action": "block",
+      "confidence": 0.98,
+      "reason": "multiple_mechanisms_or_remote_registration (T1543): 지속 신호가 여러 개 겹쳐 격리 후보입니다"
+    },
+    {
+      "alertId": "ps-08",
+      "action": "block",
+      "confidence": 0.98,
+      "reason": "temp_folder_executable_persisted (T1543): 지속 신호가 여러 개 겹쳐 격리 후보입니다"
+    },
+    {
+      "alertId": "ps-09",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "unconfirmed_item_below_threshold (T1543): 지속 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "ps-10",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "unconfirmed_item_below_threshold (T1543): 지속 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "ps-11",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "unconfirmed_item_below_threshold (T1543): 지속 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "ps-12",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "unconfirmed_item_below_threshold (T1543): 지속 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "ps-13",
+      "action": "alert",
+      "confidence": 0.7,
+      "reason": "temp_folder_executable_persisted (T1543): 지속 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "ps-14",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "unconfirmed_item_below_threshold (T1543): 지속 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "ps-15",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "unconfirmed_item_below_threshold (T1543): 지속 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "ps-16",
+      "action": "alert",
+      "confidence": 0.5,
+      "reason": "unconfirmed_item_below_threshold (T1543): 지속 신호가 뚜렷하지 않아 알립니다"
+    },
+    {
+      "alertId": "ps-17",
+      "action": "record",
+      "confidence": 0.13,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    },
+    {
+      "alertId": "ps-18",
+      "action": "record",
+      "confidence": 0.12,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    },
+    {
+      "alertId": "ps-19",
+      "action": "record",
+      "confidence": 0.13,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    },
+    {
+      "alertId": "ps-20",
+      "action": "record",
+      "confidence": 0.12,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    },
+    {
+      "alertId": "ps-21",
+      "action": "record",
+      "confidence": 0.13,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    },
+    {
+      "alertId": "ps-22",
+      "action": "record",
+      "confidence": 0.13,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    },
+    {
+      "alertId": "ps-23",
+      "action": "record",
+      "confidence": 0.12,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    },
+    {
+      "alertId": "ps-24",
+      "action": "record",
+      "confidence": 0.13,
+      "reason": "no_pattern: 평소 사건이라 기록만 합니다"
+    }
+  ],
+  "counts": {
+    "block": 8,
+    "alert": 8,
+    "record": 8
+  }
+}
